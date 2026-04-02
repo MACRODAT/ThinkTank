@@ -3,7 +3,7 @@ from fastapi import APIRouter, Body
 from typing import Optional
 from core.draft_vault import (
     get_all_drafts, get_pending_drafts, get_draft,
-    review_draft, save_draft, stats, pending_count
+    review_draft, save_draft, stats, pending_count,
 )
 
 router = APIRouter(prefix="/api/drafts", tags=["drafts"])
@@ -14,9 +14,10 @@ async def all_drafts(limit: int = 100):
     return await get_all_drafts(limit)
 
 
+# Fixed routes MUST come before /{draft_id} wildcard
 @router.get("/pending")
 async def pending(dept_id: Optional[str] = None):
-    return await get_pending_drafts(dept_id)
+    return await get_pending_drafts(dept_id.upper() if dept_id else None)
 
 
 @router.get("/stats")
@@ -24,22 +25,6 @@ async def draft_stats():
     s = await stats()
     s["pending_count"] = await pending_count()
     return s
-
-
-@router.get("/{draft_id}")
-async def get_one(draft_id: str):
-    d = await get_draft(draft_id)
-    return d if d else {"error": "Not found"}
-
-
-@router.post("/{draft_id}/review")
-async def review(
-    draft_id: str,
-    action: str = Body(...),
-    notes: Optional[str] = Body(None),
-):
-    await review_draft(draft_id, action, notes)
-    return {"ok": True, "action": action}
 
 
 @router.post("")
@@ -50,5 +35,26 @@ async def create_draft(
     content: str = Body(...),
     priority: str = Body("normal"),
 ):
-    draft_id = await save_draft(dept_id, draft_type, title, content, priority)
+    draft_id = await save_draft(dept_id.upper(), draft_type, title, content, priority)
     return {"draft_id": draft_id}
+
+
+@router.get("/{draft_id}")
+async def get_one(draft_id: str):
+    d = await get_draft(draft_id)
+    if not d:
+        return {"error": "Not found"}
+    return d
+
+
+@router.post("/{draft_id}/review")
+async def review(
+    draft_id: str,
+    action: str = Body(...),
+    notes: Optional[str] = Body(None),
+):
+    valid = {"approved", "rejected", "revised"}
+    if action not in valid:
+        return {"error": f"action must be one of {valid}"}
+    await review_draft(draft_id, action, notes)
+    return {"ok": True, "action": action}

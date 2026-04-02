@@ -5,9 +5,8 @@ from __future__ import annotations
 import aiosqlite
 import json
 import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict
 
 DB_PATH = Path(__file__).parent.parent / "data" / "think_tank.db"
 
@@ -16,15 +15,15 @@ PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
 
 CREATE TABLE IF NOT EXISTS departments (
-    id          TEXT PRIMARY KEY,
-    name        TEXT NOT NULL,
-    code        TEXT NOT NULL,
-    description TEXT,
+    id            TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
+    code          TEXT NOT NULL,
+    description   TEXT,
     system_prompt TEXT,
-    active      INTEGER DEFAULT 1,
-    schedule    TEXT,
-    last_run    TEXT,
-    config      TEXT DEFAULT '{}'
+    active        INTEGER DEFAULT 1,
+    schedule      TEXT,
+    last_run      TEXT,
+    config        TEXT DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS mail_messages (
@@ -41,7 +40,6 @@ CREATE TABLE IF NOT EXISTS mail_messages (
     read_at     TEXT,
     metadata    TEXT DEFAULT '{}'
 );
-"""
 
 CREATE TABLE IF NOT EXISTS drafts (
     id              TEXT PRIMARY KEY,
@@ -88,19 +86,21 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at  TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_mail_to_dept ON mail_messages(to_dept, status);
-CREATE INDEX IF NOT EXISTS idx_mail_thread  ON mail_messages(thread_id);
+CREATE INDEX IF NOT EXISTS idx_mail_to_dept  ON mail_messages(to_dept, status);
+CREATE INDEX IF NOT EXISTS idx_mail_thread   ON mail_messages(thread_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_status ON drafts(status, dept_id);
 CREATE INDEX IF NOT EXISTS idx_projects_dept ON projects(dept_id, status);
 """
 
 
 async def init_db():
+    """Initialise the database and seed departments."""
     DB_PATH.parent.mkdir(exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA)
         await db.commit()
         await _seed_departments(db)
+
 
 async def _seed_departments(db: aiosqlite.Connection):
     from departments.hf   import DEPT_META as HF
@@ -110,48 +110,44 @@ async def _seed_departments(db: aiosqlite.Connection):
     from departments.str_ import DEPT_META as STR
 
     for d in [HF, FIN, RES, ING, STR]:
-        await db.execute("""
-            INSERT OR IGNORE INTO departments
-              (id, name, code, description, system_prompt, schedule, config)
-            VALUES (?,?,?,?,?,?,?)
-        """, (
-            d["id"], d["name"], d["code"], d["description"],
-            d["system_prompt"], d["schedule"], json.dumps(d.get("config", {}))
-        ))
+        await db.execute(
+            """INSERT OR IGNORE INTO departments
+               (id, name, code, description, system_prompt, schedule, config)
+               VALUES (?,?,?,?,?,?,?)""",
+            (d["id"], d["name"], d["code"], d["description"],
+             d["system_prompt"], d["schedule"], json.dumps(d.get("config", {})))
+        )
         for proj in d.get("initial_projects", []):
-            await db.execute("""
-                INSERT OR IGNORE INTO projects (id, dept_id, name, description, priority)
-                VALUES (?,?,?,?,?)
-            """, (
-                str(uuid.uuid4()), d["id"],
-                proj["name"], proj["description"], proj.get("priority", "normal")
-            ))
+            await db.execute(
+                """INSERT OR IGNORE INTO projects
+                   (id, dept_id, name, description, priority)
+                   VALUES (?,?,?,?,?)""",
+                (str(uuid.uuid4()), d["id"],
+                 proj["name"], proj["description"], proj.get("priority", "normal"))
+            )
     await db.commit()
 
 
-async def get_connection() -> aiosqlite.Connection:
-    db = await aiosqlite.connect(DB_PATH)
-    db.row_factory = aiosqlite.Row
-    return db
-
-
-async def log_event(dept_id, event_type: str, description: str, metadata: dict = None):
+async def log_event(dept_id: Optional[str], event_type: str,
+                    description: str, metadata: dict = None):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            INSERT INTO audit_log (event_type, dept_id, description, metadata)
-            VALUES (?,?,?,?)
-        """, (event_type, dept_id, description, json.dumps(metadata or {})))
+        await db.execute(
+            "INSERT INTO audit_log (event_type, dept_id, description, metadata) VALUES (?,?,?,?)",
+            (event_type, dept_id, description, json.dumps(metadata or {}))
+        )
         await db.commit()
 
 
 async def set_context(dept_id: str, key: str, value: str):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            INSERT INTO dept_context (id, dept_id, key, value, updated_at)
-            VALUES (?,?,?,?, strftime('%Y-%m-%dT%H:%M:%S','now'))
-            ON CONFLICT(dept_id, key) DO UPDATE SET value=excluded.value,
-            updated_at=strftime('%Y-%m-%dT%H:%M:%S','now')
-        """, (str(uuid.uuid4()), dept_id, key, value))
+        await db.execute(
+            """INSERT INTO dept_context (id, dept_id, key, value, updated_at)
+               VALUES (?,?,?,?, strftime('%Y-%m-%dT%H:%M:%S','now'))
+               ON CONFLICT(dept_id, key) DO UPDATE
+               SET value=excluded.value,
+                   updated_at=strftime('%Y-%m-%dT%H:%M:%S','now')""",
+            (str(uuid.uuid4()), dept_id, key, value)
+        )
         await db.commit()
 
 
