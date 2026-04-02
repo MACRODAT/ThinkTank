@@ -1,0 +1,62 @@
+"""
+api/main.py — FastAPI application entry point.
+"""
+from __future__ import annotations
+import logging
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from pathlib import Path
+
+from core.database import init_db
+from core.scheduler import setup_scheduler
+from api.routes.departments import router as dept_router
+from api.routes.mail        import router as mail_router
+from api.routes.drafts      import router as draft_router
+from api.routes.admin       import router as admin_router
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("🏛️  Central Think Tank initializing...")
+    await init_db()
+    logger.info("✓ Database ready")
+    setup_scheduler()
+    logger.info("✓ Scheduler started")
+    logger.info("🟢 Think Tank online — http://localhost:8000")
+    yield
+    logger.info("🔴 Think Tank shutting down")
+
+
+app = FastAPI(title="Central Think Tank", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(dept_router)
+app.include_router(mail_router)
+app.include_router(draft_router)
+app.include_router(admin_router)
+
+
+@app.get("/", response_class=FileResponse)
+async def index():
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/{full_path:path}", response_class=FileResponse)
+async def spa_fallback(full_path: str):
+    return FileResponse(FRONTEND_DIR / "index.html")

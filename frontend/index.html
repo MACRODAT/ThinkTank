@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Central Think Tank</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #21262d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --orange: #d29922; --red: #f85149;
+    --hf: #4CAF50; --fin: #2196F3; --res: #9C27B0;
+    --ing: #FF9800; --str: #F44336;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* Layout */
+  .layout { display: flex; height: 100vh; }
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+             display: flex; flex-direction: column; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* Sidebar */
+  .sidebar-header { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-header h1 { font-size: 14px; font-weight: 700; color: var(--text); }
+  .sidebar-header p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .nav-section { padding: 12px 0; }
+  .nav-label { font-size: 10px; text-transform: uppercase; color: var(--muted);
+               padding: 4px 16px; letter-spacing: 0.08em; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+              cursor: pointer; font-size: 13px; color: var(--muted);
+              border-left: 3px solid transparent; transition: all 0.15s; }
+  .nav-item:hover, .nav-item.active { background: rgba(88,166,255,0.08);
+    color: var(--text); border-left-color: var(--accent); }
+  .nav-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .badge { background: var(--red); color: white; font-size: 10px; padding: 1px 6px;
+           border-radius: 10px; margin-left: auto; font-weight: 600; }
+
+  /* Cards */
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Stat cards */
+  .stat { text-align: center; }
+  .stat-value { font-size: 36px; font-weight: 700; color: var(--text); }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Department cards */
+  .dept-card { border-left: 4px solid; }
+  .dept-card .dept-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .dept-card .dept-code { font-size: 11px; color: var(--muted); }
+  .dept-card .dept-stats { display: flex; gap: 12px; margin-top: 14px; }
+  .dept-stat { text-align: center; background: var(--bg); padding: 8px 12px; border-radius: 6px; flex: 1; }
+  .dept-stat-val { font-size: 18px; font-weight: 700; }
+  .dept-stat-lbl { font-size: 10px; color: var(--muted); }
+  .dept-card .run-btn { margin-top: 14px; width: 100%; padding: 8px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent; color: var(--text);
+    cursor: pointer; font-size: 12px; transition: all 0.15s; }
+  .dept-card .run-btn:hover { background: var(--accent); border-color: var(--accent); color: #000; }
+  .last-run { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  /* Drafts */
+  .draft-item { padding: 14px; border-bottom: 1px solid var(--border); display: flex;
+                align-items: flex-start; gap: 12px; }
+  .draft-item:last-child { border-bottom: none; }
+  .dept-tag { font-size: 11px; font-weight: 700; color: white; padding: 3px 8px;
+              border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+  .draft-info { flex: 1; min-width: 0; }
+  .draft-title { font-size: 13px; font-weight: 600; margin-bottom: 3px;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .draft-meta { font-size: 11px; color: var(--muted); }
+  .draft-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn { padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer;
+         font-size: 12px; font-weight: 600; transition: all 0.15s; }
+  .btn-approve { background: var(--green); color: #000; }
+  .btn-reject { background: var(--red); color: white; }
+  .btn-view { background: var(--border); color: var(--text); }
+  .btn-approve:hover { filter: brightness(1.1); }
+  .btn-reject:hover { filter: brightness(1.1); }
+  .priority-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+  /* Mail */
+  .mail-item { padding: 12px 16px; border-bottom: 1px solid var(--border);
+               display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+  .mail-item:hover { background: rgba(255,255,255,0.03); }
+  .mail-item.unread .mail-subject { font-weight: 700; color: var(--text); }
+  .mail-from { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .mail-subject { font-size: 13px; color: var(--muted); }
+  .mail-time { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .arrow-badge { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+
+  /* Page header */
+  .page-header { margin-bottom: 24px; }
+  .page-header h2 { font-size: 22px; font-weight: 700; }
+  .page-header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* Run all button */
+  .run-all-btn { padding: 10px 20px; background: var(--accent); color: #000;
+    border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; }
+  .run-all-btn:hover { filter: brightness(1.1); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+                   z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+           padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .modal-meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .modal-content { font-size: 13px; line-height: 1.7; white-space: pre-wrap;
+                   background: var(--bg); padding: 16px; border-radius: 8px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-close { margin-left: auto; background: var(--border); color: var(--text);
+                 border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--green);
+           color: #000; padding: 10px 20px; border-radius: 8px; font-weight: 600;
+           font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.3s; }
+  .toast.show { opacity: 1; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .tab { padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--muted);
+         border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border);
+             border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>🏛️ Think Tank</h1>
+      <p id="owner-label">Central Operations</p>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <span>📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="navigate('drafts')">
+        <span>📋</span> Drafts
+        <span class="badge" id="drafts-badge" style="display:none"></span>
+      </div>
+      <div class="nav-item" onclick="navigate('mail')">
+        <span>📨</span> Mail Room
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Departments</div>
+      <div class="nav-item" onclick="navigate('dept','HF')">
+        <span class="dot" style="background:var(--hf)"></span> Health &amp; Welfare
+      </div>
+      <div class="nav-item" onclick="navigate('dept','FIN')">
+        <span class="dot" style="background:var(--fin)"></span> Finance
+      </div>
+      <div class="nav-item" onclick="navigate('dept','RES')">
+        <span class="dot" style="background:var(--res)"></span> Research
+      </div>
+      <div class="nav-item" onclick="navigate('dept','ING')">
+        <span class="dot" style="background:var(--ing)"></span> Engineering
+      </div>
+      <div class="nav-item" onclick="navigate('dept','STR')">
+        <span class="dot" style="background:var(--str)"></span> Strategy
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Admin</div>
+      <div class="nav-item" onclick="navigate('audit')">
+        <span>🔍</span> Audit Log
+      </div>
+      <div class="nav-item" onclick="navigate('projects')">
+        <span>📁</span> Projects
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main" id="main-content">
+    <div class="page-header">
+      <h2>Loading...</h2>
+    </div>
+  </div>
+</div>
+
+<!-- Draft modal -->
+<div class="modal-overlay" id="draft-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <span id="modal-dept-tag" class="dept-tag"></span>
+      <span id="modal-type" style="font-size:12px;color:var(--muted);text-transform:uppercase;"></span>
+    </div>
+    <h3 id="modal-title"></h3>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-content" id="modal-content"></div>
+    <div class="modal-actions">
+      <button class="btn btn-approve" onclick="reviewDraft('approved')">✓ Approve</button>
+      <button class="btn btn-reject" onclick="reviewDraft('rejected')">✗ Reject</button>
+      <button class="modal-close" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:8000/api';
+const COLORS = { HF:'#4CAF50', FIN:'#2196F3', RES:'#9C27B0', ING:'#FF9800', STR:'#F44336' };
+const NAMES  = { HF:'Health & Welfare', FIN:'Finance & Resources',
+                 RES:'Research & Intelligence', ING:'Engineering & Science',
+                 STR:'Strategy & Planning' };
+const PRIO_DOT = { urgent:'#f85149', high:'#d29922', normal:'#3fb950', low:'#8b949e' };
+
+let currentDraftId = null;
+let allDepts = [];
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+window.onload = async () => {
+  await refreshBadge();
+  navigate('dashboard');
+  setInterval(refreshBadge, 30000);
+};
+
+async function refreshBadge() {
+  try {
+    const r = await fetch(`${API}/drafts/stats`);
+    const s = await r.json();
+    const cnt = s.pending_count || 0;
+    const b = document.getElementById('drafts-badge');
+    if (cnt > 0) { b.textContent = cnt; b.style.display = ''; }
+    else { b.style.display = 'none'; }
+  } catch {}
+}
+
+// ── Router ───────────────────────────────────────────────────────────────────
+function navigate(page, param) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const pages = { dashboard: renderDashboard, drafts: renderDrafts,
+                  mail: renderMail, dept: renderDept,
+                  audit: renderAudit, projects: renderProjects };
+  if (pages[page]) pages[page](param);
+}
+
+function setActive(page, param) {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const onclick = el.getAttribute('onclick') || '';
+    if (onclick.includes(`'${page}'`) && (!param || onclick.includes(`'${param}'`))) {
+      el.classList.add('active');
+    }
+  });
+}
+</script>
+
+<script>
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function renderDashboard() {
+  setActive('dashboard');
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>🏛️ Central Think Tank</h2>
+      <p>Live overview of all departments and pending work</p>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:24px;">
+      <button class="run-all-btn" onclick="runAll()">▶ Run All Departments</button>
+      <span id="run-status" style="font-size:13px;color:var(--muted);"></span>
+    </div>
+    <div id="stats-row" class="grid grid-3" style="margin-bottom:24px;"></div>
+    <div id="dept-grid" class="grid grid-2"></div>`;
+
+  const [depts, dStats] = await Promise.all([
+    fetch(`${API}/departments`).then(r=>r.json()),
+    fetch(`${API}/drafts/stats`).then(r=>r.json()),
+  ]);
+  allDepts = depts;
+
+  const totalMail = depts.reduce((s,d) => s + (d.unread_mail||0), 0);
+  document.getElementById('stats-row').innerHTML = `
+    <div class="card stat">
+      <div class="stat-value">${depts.length}</div>
+      <div class="stat-label">Active Departments</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-value" style="color:var(--orange)">${dStats.pending_count||0}</div>
+      <div class="stat-label">Drafts Pending Review</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-value" style="color:var(--accent)">${totalMail}</div>
+      <div class="stat-label">Unread Internal Mail</div>
+    </div>`;
+
+  document.getElementById('dept-grid').innerHTML = depts.map(d => `
+    <div class="card dept-card" style="border-left-color:${COLORS[d.id]||'#607D8B'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="dept-name">${d.name}</div>
+          <div class="dept-code">${d.code}</div>
+        </div>
+        <span style="font-size:22px;">${deptIcon(d.id)}</span>
+      </div>
+      <div class="dept-stats">
+        <div class="dept-stat">
+          <div class="dept-stat-val" style="color:var(--orange)">${d.pending_drafts||0}</div>
+          <div class="dept-stat-lbl">Drafts</div>
+        </div>
+        <div class="dept-stat">
+          <div class="dept-stat-val" style="color:var(--accent)">${d.unread_mail||0}</div>
+          <div class="dept-stat-lbl">Unread Mail</div>
+        </div>
+      </div>
+      <button class="run-btn" onclick="runDept('${d.id}', this)">▶ Run Cycle</button>
+      <div class="last-run">Last run: ${d.last_run ? d.last_run.replace('T',' ').substring(0,16) : 'Never'}</div>
+    </div>`).join('');
+}
+
+function deptIcon(id) {
+  return {HF:'🩺',FIN:'💰',RES:'🔬',ING:'⚙️',STR:'🎯'}[id] || '🏛️';
+}
+
+async function runAll() {
+  const s = document.getElementById('run-status');
+  s.innerHTML = '<span class="spinner"></span> Starting all departments...';
+  try {
+    await fetch(`${API}/departments/run-all`, {method:'POST'});
+    s.textContent = '✓ All cycles started';
+    toast('All department cycles launched');
+  } catch { s.textContent = '✗ Failed to start'; }
+}
+
+async function runDept(id, btn) {
+  const orig = btn.textContent;
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  try {
+    await fetch(`${API}/departments/${id}/run`, {method:'POST'});
+    toast(`${id} cycle started`);
+  } catch { toast('Failed to start cycle', true); }
+  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+}
+</script>
+
+<script>
+// ── Drafts page ───────────────────────────────────────────────────────────────
+async function renderDrafts(filter) {
+  setActive('drafts');
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>📋 Draft Vault</h2>
+      <p>AI-generated documents awaiting your review and approval</p>
+    </div>
+    <div class="tabs">
+      <div class="tab ${!filter||filter==='pending'?'active':''}" onclick="renderDrafts('pending')">Pending</div>
+      <div class="tab ${filter==='all'?'active':''}" onclick="renderDrafts('all')">All Drafts</div>
+    </div>
+    <div class="card" style="padding:0;">
+      <div id="drafts-list"><div class="empty"><span class="spinner"></span></div></div>
+    </div>`;
+
+  const url = (!filter || filter==='pending')
+    ? `${API}/drafts/pending`
+    : `${API}/drafts?limit=100`;
+  const drafts = await fetch(url).then(r=>r.json());
+  const list = document.getElementById('drafts-list');
+
+  if (!drafts.length) {
+    list.innerHTML = '<div class="empty">✓ No drafts in this view</div>';
+    return;
+  }
+
+  list.innerHTML = drafts.map(d => `
+    <div class="draft-item">
+      <div class="priority-dot" style="background:${PRIO_DOT[d.priority]||'#8b949e'}"></div>
+      <span class="dept-tag" style="background:${COLORS[d.dept_id]||'#607D8B'}">${d.dept_id}</span>
+      <div class="draft-info">
+        <div class="draft-title">${d.title}</div>
+        <div class="draft-meta">${d.draft_type.toUpperCase()} · ${d.created_at.substring(0,16).replace('T',' ')}
+          ${d.status !== 'pending' ? `· <span style="color:${d.status==='approved'?'var(--green)':'var(--red)'}">${d.status}</span>` : ''}
+        </div>
+      </div>
+      <div class="draft-actions">
+        <button class="btn btn-view" onclick="viewDraft('${d.id}')">View</button>
+        ${d.status==='pending' ? `
+        <button class="btn btn-approve" onclick="quickReview('${d.id}','approved')">✓</button>
+        <button class="btn btn-reject" onclick="quickReview('${d.id}','rejected')">✗</button>` : ''}
+      </div>
+    </div>`).join('');
+
+  await refreshBadge();
+}
+
+async function viewDraft(id) {
+  const d = await fetch(`${API}/drafts/${id}`).then(r=>r.json());
+  currentDraftId = id;
+  const color = COLORS[d.dept_id] || '#607D8B';
+  document.getElementById('modal-dept-tag').textContent = d.dept_id;
+  document.getElementById('modal-dept-tag').style.background = color;
+  document.getElementById('modal-type').textContent = d.draft_type;
+  document.getElementById('modal-title').textContent = d.title;
+  document.getElementById('modal-meta').textContent =
+    `${d.dept_name} · ${d.created_at.substring(0,16).replace('T',' ')} · Priority: ${d.priority}`;
+  document.getElementById('modal-content').textContent = d.content;
+  const actions = document.querySelector('.modal-actions');
+  if (d.status !== 'pending') {
+    actions.querySelector('.btn-approve').style.display = 'none';
+    actions.querySelector('.btn-reject').style.display = 'none';
+  } else {
+    actions.querySelector('.btn-approve').style.display = '';
+    actions.querySelector('.btn-reject').style.display = '';
+  }
+  document.getElementById('draft-modal').classList.add('open');
+}
+
+async function reviewDraft(action) {
+  if (!currentDraftId) return;
+  await fetch(`${API}/drafts/${currentDraftId}/review`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action})
+  });
+  closeModal();
+  toast(`Draft ${action}`);
+  renderDrafts('pending');
+}
+
+async function quickReview(id, action) {
+  await fetch(`${API}/drafts/${id}/review`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action})
+  });
+  toast(`Draft ${action}`);
+  renderDrafts('pending');
+}
+
+function closeModal() {
+  document.getElementById('draft-modal').classList.remove('open');
+  currentDraftId = null;
+}
+document.getElementById('draft-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('draft-modal')) closeModal();
+});
+</script>
+
+<script>
+// ── Mail Room ─────────────────────────────────────────────────────────────────
+async function renderMail() {
+  setActive('mail');
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>📨 Mail Room</h2>
+      <p>All inter-department communications</p>
+    </div>
+    <div style="margin-bottom:16px;">
+      <select id="mail-filter" onchange="filterMail()" style="
+        background:var(--surface);border:1px solid var(--border);color:var(--text);
+        padding:8px 12px;border-radius:6px;font-size:13px;">
+        <option value="all">All Departments</option>
+        <option value="HF">HF — Health & Welfare</option>
+        <option value="FIN">FIN — Finance</option>
+        <option value="RES">RES — Research</option>
+        <option value="ING">ING — Engineering</option>
+        <option value="STR">STR — Strategy</option>
+      </select>
+    </div>
+    <div class="card" style="padding:0;">
+      <div id="mail-list"><div class="empty"><span class="spinner"></span></div></div>
+    </div>`;
+  await loadMail();
+}
+
+let allMail = [];
+async function loadMail() {
+  allMail = await fetch(`${API}/mail?limit=100`).then(r=>r.json());
+  renderMailList(allMail);
+}
+
+function filterMail() {
+  const f = document.getElementById('mail-filter').value;
+  const filtered = f === 'all' ? allMail
+    : allMail.filter(m => m.from_dept===f || m.to_dept===f);
+  renderMailList(filtered);
+}
+
+function renderMailList(mails) {
+  const list = document.getElementById('mail-list');
+  if (!mails.length) { list.innerHTML = '<div class="empty">No mail found</div>'; return; }
+  list.innerHTML = mails.map(m => {
+    const fc = COLORS[m.from_dept]||'#607D8B';
+    const tc = COLORS[m.to_dept]||'#607D8B';
+    const isUnread = m.status === 'unread';
+    return `
+      <div class="mail-item ${isUnread?'unread':''}" onclick="viewThread('${m.thread_id}','${m.id}')">
+        <span class="arrow-badge" style="background:${fc};color:white">${m.from_dept}</span>
+        <span style="color:var(--muted);font-size:12px;">→</span>
+        <span class="arrow-badge" style="background:${tc};color:white">${m.to_dept}</span>
+        <div style="flex:1;min-width:0;padding:0 8px;">
+          <div class="mail-subject ${isUnread?'':''}">
+            ${isUnread ? '● ' : ''}<strong>${m.subject}</strong>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.body.substring(0,80)}...</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div class="mail-time">${m.created_at.substring(0,16).replace('T',' ')}</div>
+          <div style="font-size:10px;color:${m.priority==='urgent'?'var(--red)':m.priority==='high'?'var(--orange)':'var(--muted)'}">
+            ${m.priority}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function viewThread(threadId, mailId) {
+  await fetch(`${API}/mail/${mailId}/read`, {method:'POST'});
+  const thread = await fetch(`${API}/mail/thread/${threadId}`).then(r=>r.json());
+  const main = document.getElementById('main-content');
+  const first = thread[0] || {};
+  main.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <button class="btn btn-view" onclick="renderMail()">← Back to Mail</button>
+    </div>
+    <div class="page-header">
+      <h2>${first.subject || 'Thread'}</h2>
+      <p>${thread.length} message(s) in thread</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      ${thread.map(m => `
+        <div class="card">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+            <span class="dept-tag" style="background:${COLORS[m.from_dept]||'#607D8B'}">${m.from_dept}</span>
+            <span style="color:var(--muted);font-size:12px;">→</span>
+            <span class="dept-tag" style="background:${COLORS[m.to_dept]||'#607D8B'}">${m.to_dept}</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--muted);">
+              ${m.created_at.substring(0,16).replace('T',' ')}
+              · <span style="color:${m.priority==='urgent'?'var(--red)':m.priority==='high'?'var(--orange)':'var(--muted)'}">${m.priority}</span>
+            </span>
+          </div>
+          <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;">${m.body}</div>
+        </div>`).join('')}
+    </div>`;
+  await refreshBadge();
+}
+</script>
+
+<script>
+// ── Department detail page ────────────────────────────────────────────────────
+async function renderDept(id) {
+  setActive('dept', id);
+  const main = document.getElementById('main-content');
+  const color = COLORS[id] || '#607D8B';
+  main.innerHTML = `<div class="empty"><span class="spinner"></span></div>`;
+
+  const [dept, drafts, mail] = await Promise.all([
+    fetch(`${API}/departments/${id}`).then(r=>r.json()),
+    fetch(`${API}/drafts/pending?dept_id=${id}`).then(r=>r.json()),
+    fetch(`${API}/mail/${id}/all?limit=20`).then(r=>r.json()),
+  ]);
+
+  main.innerHTML = `
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+          <span style="font-size:32px;">${deptIcon(id)}</span>
+          <div>
+            <h2>${dept.name}</h2>
+            <p>${dept.description||''}</p>
+          </div>
+        </div>
+      </div>
+      <button class="run-all-btn" onclick="runDeptPage('${id}',this)">▶ Run Cycle</button>
+    </div>
+
+    <div class="grid grid-3" style="margin-bottom:24px;">
+      <div class="card stat">
+        <div class="stat-value" style="color:var(--orange)">${drafts.length}</div>
+        <div class="stat-label">Pending Drafts</div>
+      </div>
+      <div class="card stat">
+        <div class="stat-value" style="color:var(--accent)">${mail.filter(m=>m.status==='unread'&&m.to_dept===id).length}</div>
+        <div class="stat-label">Unread Mail</div>
+      </div>
+      <div class="card stat">
+        <div class="stat-value" style="color:var(--green)">${(dept.projects||[]).length}</div>
+        <div class="stat-label">Active Projects</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- Projects -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Active Projects</span>
+        </div>
+        ${(dept.projects||[]).length === 0
+          ? '<div class="empty">No active projects</div>'
+          : (dept.projects||[]).map(p => `
+            <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+              <div style="font-size:13px;font-weight:600;color:var(--text);">${p.name}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:3px;">${p.description||''}</div>
+              <div style="margin-top:4px;">
+                <span style="font-size:10px;color:${PRIO_DOT[p.priority]};font-weight:700;text-transform:uppercase;">${p.priority}</span>
+              </div>
+            </div>`).join('')}
+      </div>
+
+      <!-- Pending Drafts -->
+      <div class="card" style="padding:0;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+          <span class="card-title">Pending Drafts</span>
+        </div>
+        ${drafts.length === 0
+          ? '<div class="empty">No pending drafts</div>'
+          : drafts.map(d => `
+            <div class="draft-item">
+              <div class="priority-dot" style="background:${PRIO_DOT[d.priority]||'#8b949e'}"></div>
+              <div class="draft-info">
+                <div class="draft-title">${d.title}</div>
+                <div class="draft-meta">${d.draft_type.toUpperCase()} · ${d.created_at.substring(0,10)}</div>
+              </div>
+              <div class="draft-actions">
+                <button class="btn btn-view" onclick="viewDraft('${d.id}')">View</button>
+                <button class="btn btn-approve" onclick="quickReview('${d.id}','approved')">✓</button>
+              </div>
+            </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Recent mail -->
+    <div class="card" style="margin-top:16px;padding:0;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+        <span class="card-title">Recent Mail</span>
+      </div>
+      ${mail.length === 0
+        ? '<div class="empty">No mail</div>'
+        : mail.slice(0,8).map(m => `
+          <div class="mail-item ${m.status==='unread'&&m.to_dept===id?'unread':''}"
+               onclick="viewThread('${m.thread_id}','${m.id}')">
+            <span class="arrow-badge" style="background:${COLORS[m.from_dept]||'#607D8B'};color:white;">${m.from_dept}</span>
+            <span style="color:var(--muted);font-size:11px;margin:0 4px;">→</span>
+            <span class="arrow-badge" style="background:${COLORS[m.to_dept]||'#607D8B'};color:white;">${m.to_dept}</span>
+            <div style="flex:1;padding:0 10px;min-width:0;">
+              <div class="mail-subject" style="font-size:13px;">${m.subject}</div>
+            </div>
+            <div class="mail-time">${m.created_at.substring(0,10)}</div>
+          </div>`).join('')}
+    </div>`;
+}
+
+async function runDeptPage(id, btn) {
+  const orig = btn.textContent;
+  btn.innerHTML = '<span class="spinner"></span> Running...';
+  btn.disabled = true;
+  await fetch(`${API}/departments/${id}/run`, {method:'POST'});
+  toast(`${id} cycle started`);
+  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+}
+</script>
+
+<script>
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+async function renderAudit() {
+  setActive('audit');
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>🔍 Audit Log</h2>
+      <p>Full activity history of the think tank</p>
+    </div>
+    <div class="card" style="padding:0;">
+      <div id="audit-list"><div class="empty"><span class="spinner"></span></div></div>
+    </div>`;
+
+  const events = await fetch(`${API}/admin/audit?limit=100`).then(r=>r.json());
+  const list = document.getElementById('audit-list');
+  if (!events.length) { list.innerHTML = '<div class="empty">No events yet</div>'; return; }
+
+  const ICONS = {
+    cycle_start:'🔄', cycle_error:'❌', mail_sent:'📨',
+    draft_created:'📝', draft_reviewed:'✅', orchestrator_run:'🏛️'
+  };
+
+  list.innerHTML = events.map(e => `
+    <div style="display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);
+                align-items:flex-start;">
+      <span style="font-size:16px;flex-shrink:0;">${ICONS[e.event_type]||'📌'}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">
+          ${e.dept_id ? `<span style="color:${COLORS[e.dept_id]||'#607D8B'};font-weight:700;">[${e.dept_id}]</span> ` : ''}
+          ${e.description}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${e.event_type}</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0;">
+        ${e.created_at.substring(0,16).replace('T',' ')}
+      </div>
+    </div>`).join('');
+}
+
+// ── Projects page ─────────────────────────────────────────────────────────────
+async function renderProjects() {
+  setActive('projects');
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>📁 All Projects</h2>
+      <p>Active projects across all departments</p>
+    </div>
+    <div class="card" style="padding:0;">
+      <div id="proj-list"><div class="empty"><span class="spinner"></span></div></div>
+    </div>`;
+
+  const projects = await fetch(`${API}/admin/projects`).then(r=>r.json());
+  const list = document.getElementById('proj-list');
+  if (!projects.length) { list.innerHTML = '<div class="empty">No projects found</div>'; return; }
+
+  let lastDept = null;
+  list.innerHTML = projects.map(p => {
+    const header = p.dept_id !== lastDept
+      ? `<div style="padding:10px 16px 4px;background:var(--bg);border-bottom:1px solid var(--border);">
+           <span class="dept-tag" style="background:${COLORS[p.dept_id]||'#607D8B'}">${p.dept_id}</span>
+           <span style="font-size:12px;color:var(--muted);margin-left:8px;">${p.dept_name}</span>
+         </div>`
+      : '';
+    lastDept = p.dept_id;
+    return `${header}
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;">
+        <div class="priority-dot" style="background:${PRIO_DOT[p.priority]||'#8b949e'};margin-top:5px;"></div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${p.name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">${p.description||''}</div>
+        </div>
+        <div style="font-size:11px;color:${PRIO_DOT[p.priority]};font-weight:700;text-transform:uppercase;white-space:nowrap;">
+          ${p.priority}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--red)' : 'var(--green)';
+  t.style.color = isError ? 'white' : '#000';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

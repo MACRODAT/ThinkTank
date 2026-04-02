@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Data (DB is local)
+data/think_tank.db
+logs/
+
+# Secrets
+.env
+config.local.yaml
+
+# OS
+.DS_Store
+Thumbs.db

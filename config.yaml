@@ -1,0 +1,67 @@
+# ============================================================
+#  CENTRAL THINK TANK — Configuration
+# ============================================================
+
+think_tank:
+  name: "Central Think Tank"
+  owner: "Younes"
+  timezone: "Africa/Casablanca"
+
+# --- AI Backends -------------------------------------------
+ai:
+  claude:
+    api_key: "YOUR_ANTHROPIC_API_KEY"
+    model: "claude-sonnet-4-20250514"
+    heavy_tasks:
+      - strategy
+      - comprehensive_report
+      - full_analysis
+      - research_brief
+      - annual_plan
+      - policy_document
+      - strategic_memo
+      - cross_dept_coordination
+
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "llama3"
+    timeout: 120
+    routine_tasks:
+      - memo
+      - status_update
+      - summary
+      - mail_draft
+      - brief_note
+      - acknowledgment
+      - weekly_digest
+
+# --- Email Notifications -----------------------------------
+email:
+  enabled: true
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  username: "YOUR_EMAIL@gmail.com"
+  password: "YOUR_APP_PASSWORD"
+  recipient: "YOUR_EMAIL@gmail.com"
+  digest_hour: 18
+
+# --- Server ------------------------------------------------
+server:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+
+# --- Department Schedules (cron expressions) ---------------
+scheduler:
+  enabled: true
+  departments:
+    HF:
+      cron: "0 8 * * *"
+    FIN:
+      cron: "0 9 * * 1"
+    RES:
+      cron: "0 10 * * *"
+    ING:
+      cron: "0 11 * * 2"
+    STR:
+      cron: "0 7 * * 1"
