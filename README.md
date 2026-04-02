@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🏛️ Central Think Tank
 
 An autonomous multi-agent system with 5 AI-powered departments that work, communicate, and produce strategic documents — all running locally on your machine.
@@ -70,3 +71,7 @@ email:
 - **Manual**: Click "Run Cycle" on any department card or use "Run All Departments"
 - **Automatic**: Each department runs on its configured cron schedule when the server is on
 - After each cycle, pending drafts appear in the Vault and trigger an email digest
+=======
+# ThinkTank
+Personal think-tank
+>>>>>>> origin/main
