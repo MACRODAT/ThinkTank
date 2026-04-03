@@ -17,6 +17,7 @@ from api.routes.departments import router as dept_router
 from api.routes.mail        import router as mail_router
 from api.routes.drafts      import router as draft_router
 from api.routes.admin       import router as admin_router
+from api.routes.settings    import router as settings_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +55,7 @@ app.include_router(dept_router)
 app.include_router(mail_router)
 app.include_router(draft_router)
 app.include_router(admin_router)
+app.include_router(settings_router)
 
 
 @app.get("/")

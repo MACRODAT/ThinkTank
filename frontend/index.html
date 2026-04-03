@@ -5,759 +5,1079 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Central Think Tank</title>
 <style>
-  :root {
-    --bg: #0d1117; --surface: #161b22; --border: #21262d;
-    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
-    --green: #3fb950; --orange: #d29922; --red: #f85149;
-    --hf: #4CAF50; --fin: #2196F3; --res: #9C27B0;
-    --ing: #FF9800; --str: #F44336;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
-  a { color: var(--accent); text-decoration: none; }
-
-  /* Layout */
-  .layout { display: flex; height: 100vh; }
-  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border);
-             display: flex; flex-direction: column; flex-shrink: 0; }
-  .main { flex: 1; overflow-y: auto; padding: 24px; }
-
-  /* Sidebar */
-  .sidebar-header { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
-  .sidebar-header h1 { font-size: 14px; font-weight: 700; color: var(--text); }
-  .sidebar-header p { font-size: 11px; color: var(--muted); margin-top: 2px; }
-  .nav-section { padding: 12px 0; }
-  .nav-label { font-size: 10px; text-transform: uppercase; color: var(--muted);
-               padding: 4px 16px; letter-spacing: 0.08em; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px;
-              cursor: pointer; font-size: 13px; color: var(--muted);
-              border-left: 3px solid transparent; transition: all 0.15s; }
-  .nav-item:hover, .nav-item.active { background: rgba(88,166,255,0.08);
-    color: var(--text); border-left-color: var(--accent); }
-  .nav-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .badge { background: var(--red); color: white; font-size: 10px; padding: 1px 6px;
-           border-radius: 10px; margin-left: auto; font-weight: 600; }
-
-  /* Cards */
-  .grid { display: grid; gap: 16px; }
-  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-
-  /* Stat cards */
-  .stat { text-align: center; }
-  .stat-value { font-size: 36px; font-weight: 700; color: var(--text); }
-  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
-
-  /* Department cards */
-  .dept-card { border-left: 4px solid; }
-  .dept-card .dept-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-  .dept-card .dept-code { font-size: 11px; color: var(--muted); }
-  .dept-card .dept-stats { display: flex; gap: 12px; margin-top: 14px; }
-  .dept-stat { text-align: center; background: var(--bg); padding: 8px 12px; border-radius: 6px; flex: 1; }
-  .dept-stat-val { font-size: 18px; font-weight: 700; }
-  .dept-stat-lbl { font-size: 10px; color: var(--muted); }
-  .dept-card .run-btn { margin-top: 14px; width: 100%; padding: 8px; border-radius: 6px;
-    border: 1px solid var(--border); background: transparent; color: var(--text);
-    cursor: pointer; font-size: 12px; transition: all 0.15s; }
-  .dept-card .run-btn:hover { background: var(--accent); border-color: var(--accent); color: #000; }
-  .last-run { font-size: 11px; color: var(--muted); margin-top: 8px; }
-
-  /* Drafts */
-  .draft-item { padding: 14px; border-bottom: 1px solid var(--border); display: flex;
-                align-items: flex-start; gap: 12px; }
-  .draft-item:last-child { border-bottom: none; }
-  .dept-tag { font-size: 11px; font-weight: 700; color: white; padding: 3px 8px;
-              border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
-  .draft-info { flex: 1; min-width: 0; }
-  .draft-title { font-size: 13px; font-weight: 600; margin-bottom: 3px;
-                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .draft-meta { font-size: 11px; color: var(--muted); }
-  .draft-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .btn { padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer;
-         font-size: 12px; font-weight: 600; transition: all 0.15s; }
-  .btn-approve { background: var(--green); color: #000; }
-  .btn-reject { background: var(--red); color: white; }
-  .btn-view { background: var(--border); color: var(--text); }
-  .btn-approve:hover { filter: brightness(1.1); }
-  .btn-reject:hover { filter: brightness(1.1); }
-  .priority-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-
-  /* Mail */
-  .mail-item { padding: 12px 16px; border-bottom: 1px solid var(--border);
-               display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
-  .mail-item:hover { background: rgba(255,255,255,0.03); }
-  .mail-item.unread .mail-subject { font-weight: 700; color: var(--text); }
-  .mail-from { font-size: 12px; color: var(--muted); white-space: nowrap; }
-  .mail-subject { font-size: 13px; color: var(--muted); }
-  .mail-time { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
-  .arrow-badge { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-
-  /* Page header */
-  .page-header { margin-bottom: 24px; }
-  .page-header h2 { font-size: 22px; font-weight: 700; }
-  .page-header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
-
-  /* Run all button */
-  .run-all-btn { padding: 10px 20px; background: var(--accent); color: #000;
-    border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; }
-  .run-all-btn:hover { filter: brightness(1.1); }
-
-  /* Modal */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-                   z-index: 100; align-items: center; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-           padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; }
-  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-  .modal-meta { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
-  .modal-content { font-size: 13px; line-height: 1.7; white-space: pre-wrap;
-                   background: var(--bg); padding: 16px; border-radius: 8px; }
-  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
-  .modal-close { margin-left: auto; background: var(--border); color: var(--text);
-                 border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
-
-  /* Toast */
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--green);
-           color: #000; padding: 10px 20px; border-radius: 8px; font-weight: 600;
-           font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.3s; }
-  .toast.show { opacity: 1; }
-
-  /* Tabs */
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
-  .tab { padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--muted);
-         border-bottom: 2px solid transparent; transition: all 0.15s; }
-  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
-
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border);
-             border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+:root {
+  --bg:#0d1117; --surface:#161b22; --border:#21262d;
+  --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff;
+  --green:#3fb950; --orange:#d29922; --red:#f85149;
+  --hf:#4CAF50; --fin:#2196F3; --res:#9C27B0; --ing:#FF9800; --str:#F44336;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;}
+a{color:var(--accent);text-decoration:none;}
+.layout{display:flex;height:100vh;}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.main{flex:1;overflow-y:auto;padding:24px;}
+.sidebar-header{padding:20px 16px 12px;border-bottom:1px solid var(--border);}
+.sidebar-header h1{font-size:14px;font-weight:700;}
+.sidebar-header p{font-size:11px;color:var(--muted);margin-top:2px;}
+.nav-section{padding:8px 0;}
+.nav-label{font-size:10px;text-transform:uppercase;color:var(--muted);padding:4px 16px;letter-spacing:.08em;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;font-size:13px;color:var(--muted);border-left:3px solid transparent;transition:all .15s;}
+.nav-item:hover,.nav-item.active{background:rgba(88,166,255,.08);color:var(--text);border-left-color:var(--accent);}
+.nav-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.badge{background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:auto;font-weight:600;}
+.grid{display:grid;gap:16px;}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.stat{text-align:center;}
+.stat-value{font-size:36px;font-weight:700;}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px;}
+.dept-card{border-left:4px solid;}
+.dept-card .dept-name{font-size:16px;font-weight:700;margin-bottom:4px;}
+.dept-card .dept-code{font-size:11px;color:var(--muted);}
+.dept-card .dept-stats{display:flex;gap:12px;margin-top:14px;}
+.dept-stat{text-align:center;background:var(--bg);padding:8px 12px;border-radius:6px;flex:1;}
+.dept-stat-val{font-size:18px;font-weight:700;}
+.dept-stat-lbl{font-size:10px;color:var(--muted);}
+.run-btn{margin-top:14px;width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:12px;transition:all .15s;}
+.run-btn:hover{background:var(--accent);border-color:var(--accent);color:#000;}
+.last-run{font-size:11px;color:var(--muted);margin-top:8px;}
+.draft-item{padding:14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;}
+.draft-item:last-child{border-bottom:none;}
+.dept-tag{font-size:11px;font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;white-space:nowrap;flex-shrink:0;}
+.draft-info{flex:1;min-width:0;}
+.draft-title{font-size:13px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.draft-meta{font-size:11px;color:var(--muted);}
+.draft-actions{display:flex;gap:6px;flex-shrink:0;}
+.btn{padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;}
+.btn-approve{background:var(--green);color:#000;}
+.btn-reject{background:var(--red);color:#fff;}
+.btn-view{background:var(--border);color:var(--text);}
+.btn-approve:hover,.btn-reject:hover{filter:brightness(1.1);}
+.priority-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.mail-item{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;cursor:pointer;}
+.mail-item:hover{background:rgba(255,255,255,.03);}
+.mail-item.unread .mail-subj{font-weight:700;color:var(--text);}
+.mail-subj{font-size:13px;color:var(--muted);}
+.mail-time{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap;}
+.arrow-badge{font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;}
+.page-header{margin-bottom:24px;}
+.page-header h2{font-size:22px;font-weight:700;}
+.page-header p{color:var(--muted);font-size:13px;margin-top:4px;}
+.run-all-btn{padding:10px 20px;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;}
+.run-all-btn:hover{filter:brightness(1.1);}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto;}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+.modal-meta{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.modal-content{font-size:13px;line-height:1.7;white-space:pre-wrap;background:var(--bg);padding:16px;border-radius:8px;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;}
+.modal-close{background:var(--border);color:var(--text);border:none;padding:6px 14px;border-radius:6px;cursor:pointer;margin-left:auto;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#000;padding:10px 20px;border-radius:8px;font-weight:600;font-size:13px;z-index:500;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;align-items:center;}
+.tab{padding:8px 16px;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;}
+.tab.active{color:var(--text);border-bottom-color:var(--accent);}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
+.status-pending{background:rgba(210,153,34,.15);color:var(--orange);}
+.status-approved{background:rgba(63,185,80,.15);color:var(--green);}
+.status-rejected{background:rgba(248,81,73,.15);color:var(--red);}
+/* ── New Draft Form ── */
+.nd-modal{max-width:680px;width:96%;max-height:90vh;display:flex;flex-direction:column;padding:0;}
+.nd-header{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.nd-header h3{font-size:15px;font-weight:700;flex:1;}
+.nd-body{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.form-input{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s;}
+.form-input:focus{border-color:var(--accent);}
+.form-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.form-textarea{resize:vertical;min-height:200px;line-height:1.7;}
+.nd-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0;}
+.btn-create{background:var(--green);color:#000;border:none;padding:8px 18px;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer;}
+.btn-create:hover{filter:brightness(1.1);}
+.btn-nd-sidebar{margin:8px 12px 4px;width:calc(100% - 24px);padding:8px;background:rgba(63,185,80,.12);border:1px solid var(--green);color:var(--green);border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;transition:all .15s;}
+.btn-nd-sidebar:hover{background:var(--green);color:#000;}
+/* ── Full-Screen Editor ── */
+.fs-editor{display:none;position:fixed;inset:0;z-index:300;background:var(--bg);flex-direction:column;}
+.fs-editor.open{display:flex;}
+.fs-topbar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.fs-topbar-l{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+.fs-topbar-r{display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;}
+.fs-dept-tag{font-size:11px;font-weight:700;color:#fff;padding:3px 9px;border-radius:4px;flex-shrink:0;}
+.fs-docname{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fs-status{font-size:11px;padding:3px 9px;border-radius:4px;font-weight:700;text-transform:uppercase;}
+.fs-sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:12px;outline:none;}
+.fs-toolbar{display:flex;align-items:center;gap:2px;padding:5px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap;}
+.tbtn{background:transparent;border:1px solid transparent;color:var(--muted);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;transition:all .12s;white-space:nowrap;}
+.tbtn:hover{background:rgba(88,166,255,.12);border-color:var(--border);color:var(--text);}
+.tsep{width:1px;height:18px;background:var(--border);margin:0 3px;}
+.fs-writing{flex:1;overflow-y:auto;display:flex;justify-content:center;background:var(--bg);}
+.fs-inner{width:100%;max-width:820px;padding:48px 60px 120px;display:flex;flex-direction:column;}
+.fs-title-inp{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:32px;font-weight:800;line-height:1.2;margin-bottom:28px;font-family:inherit;resize:none;overflow:hidden;}
+.fs-title-inp::placeholder{color:rgba(139,148,158,.35);}
+.fs-content-inp{width:100%;min-height:60vh;background:transparent;border:none;outline:none;color:var(--text);font-size:15px;line-height:1.85;resize:none;font-family:'Segoe UI',system-ui,sans-serif;tab-size:4;}
+.fs-content-inp::placeholder{color:rgba(139,148,158,.3);}
+.fs-footer{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.fs-wc{font-size:11px;color:var(--muted);margin-left:auto;}
+kbd{background:var(--surface);border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-size:10px;}
+/* ── / Palette ── */
+.slash-pal{position:fixed;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:10px;width:300px;max-height:360px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.6);display:none;}
+.slash-pal.open{display:block;}
+.slash-search{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;padding:11px 14px;border-bottom:1px solid var(--border);}
+.slash-grp{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:.08em;padding:7px 14px 3px;}
+.slash-item{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;transition:background .1s;}
+.slash-item:hover,.slash-item.sel{background:rgba(88,166,255,.12);}
+.slash-ico{width:30px;height:30px;border-radius:6px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.slash-info .slash-name{font-size:13px;color:var(--text);font-weight:500;}
+.slash-info .slash-desc{font-size:11px;color:var(--muted);}
+/* ── Settings page ── */
+.s-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin-bottom:20px;}
+.s-section h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.s-row{display:flex;align-items:flex-start;gap:16px;padding:14px 0;border-bottom:1px solid var(--border);}
+.s-row:last-child{border-bottom:none;}
+.s-info{flex:1;min-width:0;}
+.s-label{font-size:13px;font-weight:600;color:var(--text);}
+.s-desc{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4;}
+.s-ctrl{flex-shrink:0;display:flex;align-items:center;gap:8px;}
+.toggle-wrap{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.toggle-opt{padding:7px 20px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);background:var(--bg);border:none;outline:none;transition:all .15s;}
+.toggle-opt.on{background:var(--accent);color:#000;}
+.s-inp{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:7px;font-size:13px;outline:none;font-family:inherit;width:260px;transition:border-color .15s;}
+.s-inp:focus{border-color:var(--accent);}
+.s-inp.wide{width:320px;}
+.s-sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:7px;font-size:13px;outline:none;min-width:200px;}
+.s-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;white-space:nowrap;}
+.s-btn:hover{border-color:var(--accent);color:var(--accent);}
+.s-panel{margin-top:4px;}
+.s-panel.hidden{display:none;}
+.probe-box{font-size:12px;margin-top:8px;padding:10px 14px;border-radius:7px;background:var(--bg);border:1px solid var(--border);line-height:1.5;}
+.probe-ok{border-color:var(--green);color:var(--green);}
+.probe-err{border-color:var(--red);color:var(--red);}
+.backend-indicator{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;}
+.bi-claude{background:rgba(88,166,255,.15);color:var(--accent);}
+.bi-ollama{background:rgba(63,185,80,.15);color:var(--green);}
 </style>
 </head>
 <body>
 
 <div class="layout">
-  <!-- Sidebar -->
   <div class="sidebar">
-    <div class="sidebar-header">
-      <h1>🏛️ Think Tank</h1>
-      <p id="owner-label">Central Operations</p>
-    </div>
+    <div class="sidebar-header"><h1>🏛️ Think Tank</h1><p>Central Operations</p></div>
     <div class="nav-section">
       <div class="nav-label">Overview</div>
-      <div class="nav-item active" onclick="navigate('dashboard')">
-        <span>📊</span> Dashboard
-      </div>
-      <div class="nav-item" onclick="navigate('drafts')">
-        <span>📋</span> Drafts
-        <span class="badge" id="drafts-badge" style="display:none"></span>
-      </div>
-      <div class="nav-item" onclick="navigate('mail')">
-        <span>📨</span> Mail Room
-      </div>
+      <div class="nav-item active" onclick="nav('dashboard')"><span>📊</span>Dashboard</div>
+      <div class="nav-item" onclick="nav('drafts')"><span>📋</span>Drafts<span class="badge" id="drafts-badge" style="display:none"></span></div>
+      <div class="nav-item" onclick="nav('mail')"><span>📨</span>Mail Room</div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Departments</div>
-      <div class="nav-item" onclick="navigate('dept','HF')">
-        <span class="dot" style="background:var(--hf)"></span> Health &amp; Welfare
-      </div>
-      <div class="nav-item" onclick="navigate('dept','FIN')">
-        <span class="dot" style="background:var(--fin)"></span> Finance
-      </div>
-      <div class="nav-item" onclick="navigate('dept','RES')">
-        <span class="dot" style="background:var(--res)"></span> Research
-      </div>
-      <div class="nav-item" onclick="navigate('dept','ING')">
-        <span class="dot" style="background:var(--ing)"></span> Engineering
-      </div>
-      <div class="nav-item" onclick="navigate('dept','STR')">
-        <span class="dot" style="background:var(--str)"></span> Strategy
-      </div>
+      <div class="nav-item" onclick="nav('dept','HF')"><span class="dot" style="background:var(--hf)"></span>Health &amp; Welfare</div>
+      <div class="nav-item" onclick="nav('dept','FIN')"><span class="dot" style="background:var(--fin)"></span>Finance</div>
+      <div class="nav-item" onclick="nav('dept','RES')"><span class="dot" style="background:var(--res)"></span>Research</div>
+      <div class="nav-item" onclick="nav('dept','ING')"><span class="dot" style="background:var(--ing)"></span>Engineering</div>
+      <div class="nav-item" onclick="nav('dept','STR')"><span class="dot" style="background:var(--str)"></span>Strategy</div>
     </div>
+    <button class="btn-nd-sidebar" onclick="openND()">＋ New Draft</button>
     <div class="nav-section">
       <div class="nav-label">Admin</div>
-      <div class="nav-item" onclick="navigate('audit')">
-        <span>🔍</span> Audit Log
-      </div>
-      <div class="nav-item" onclick="navigate('projects')">
-        <span>📁</span> Projects
-      </div>
+      <div class="nav-item" onclick="nav('audit')"><span>🔍</span>Audit Log</div>
+      <div class="nav-item" onclick="nav('projects')"><span>📁</span>Projects</div>
+      <div class="nav-item" onclick="nav('settings')"><span>⚙️</span>Settings</div>
     </div>
   </div>
+  <div class="main" id="main"></div>
+</div>
 
-  <!-- Main content -->
-  <div class="main" id="main-content">
-    <div class="page-header">
-      <h2>Loading...</h2>
+<!-- View modal -->
+<div class="modal-overlay" id="view-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <span id="vm-tag" class="dept-tag"></span>
+      <span id="vm-type" style="font-size:12px;color:var(--muted);text-transform:uppercase;"></span>
+    </div>
+    <h3 id="vm-title"></h3>
+    <div class="modal-meta" id="vm-meta"></div>
+    <div class="modal-content" id="vm-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-approve" id="vm-approve" onclick="qReview(_vmId,'approved')">✓ Approve</button>
+      <button class="btn btn-reject" id="vm-reject" onclick="qReview(_vmId,'rejected')">✗ Reject</button>
+      <button class="modal-close" onclick="closeVM()">Close</button>
     </div>
   </div>
 </div>
 
-<!-- Draft modal -->
-<div class="modal-overlay" id="draft-modal">
-  <div class="modal">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-      <span id="modal-dept-tag" class="dept-tag"></span>
-      <span id="modal-type" style="font-size:12px;color:var(--muted);text-transform:uppercase;"></span>
+<!-- New Draft modal -->
+<div class="modal-overlay" id="nd-modal">
+  <div class="modal nd-modal">
+    <div class="nd-header"><span style="font-size:20px">📝</span><h3>New Draft</h3><button class="modal-close" onclick="closeND()">✕</button></div>
+    <div class="nd-body">
+      <div class="form-group"><label class="form-label">Title *</label><input class="form-input" id="nd-title" type="text" placeholder="e.g. Q3 Health Strategy Review"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Department</label>
+          <select class="form-input" id="nd-dept">
+            <option value="HF">🩺 HF</option><option value="FIN">💰 FIN</option>
+            <option value="RES">🔬 RES</option><option value="ING">⚙️ ING</option><option value="STR">🎯 STR</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Type</label>
+          <select class="form-input" id="nd-type">
+            <option value="strategy">Strategy</option><option value="comprehensive_report">Report</option>
+            <option value="research_brief">Research Brief</option><option value="memo">Memo</option>
+            <option value="recommendation">Recommendation</option><option value="policy_document">Policy</option>
+            <option value="full_analysis">Analysis</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Priority</label>
+          <select class="form-input" id="nd-priority">
+            <option value="normal">Normal</option><option value="high">High</option>
+            <option value="urgent">Urgent</option><option value="low">Low</option>
+          </select></div>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Content * <span style="font-weight:400;text-transform:none;color:var(--muted)">— Markdown supported</span></label>
+        <textarea class="form-input form-textarea" id="nd-content" oninput="ndWC()" placeholder="Start writing…&#10;# Heading, **bold**, - list, > quote"></textarea>
+      </div>
+      <div style="font-size:11px;color:var(--muted)" id="nd-wc">0 words</div>
     </div>
-    <h3 id="modal-title"></h3>
-    <div class="modal-meta" id="modal-meta"></div>
-    <div class="modal-content" id="modal-content"></div>
-    <div class="modal-actions">
-      <button class="btn btn-approve" onclick="reviewDraft('approved')">✓ Approve</button>
-      <button class="btn btn-reject" onclick="reviewDraft('rejected')">✗ Reject</button>
-      <button class="modal-close" onclick="closeModal()">Close</button>
+    <div class="nd-footer">
+      <button class="btn-create" id="nd-btn" onclick="submitND(false)">💾 Create Draft</button>
+      <button class="btn-create" style="background:var(--fin);color:#fff" id="nd-btn2" onclick="submitND(true)">💾 Create &amp; Edit</button>
+      <button class="modal-close" onclick="closeND()">Cancel</button>
+      <span id="nd-err" style="font-size:12px;color:var(--red);margin-left:8px"></span>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- Full-Screen Editor -->
+<div id="fs-editor" class="fs-editor">
+  <div class="fs-topbar">
+    <div class="fs-topbar-l">
+      <span id="fs-tag" class="fs-dept-tag"></span>
+      <span id="fs-name" class="fs-docname">Untitled</span>
+    </div>
+    <div class="fs-topbar-r">
+      <span id="fs-status" class="fs-status status-pending">pending</span>
+      <select id="fs-type" class="fs-sel">
+        <option value="strategy">Strategy</option><option value="comprehensive_report">Report</option>
+        <option value="research_brief">Research Brief</option><option value="memo">Memo</option>
+        <option value="recommendation">Recommendation</option><option value="policy_document">Policy</option>
+        <option value="full_analysis">Analysis</option>
+      </select>
+      <select id="fs-priority" class="fs-sel">
+        <option value="normal">Normal</option><option value="high">🟠 High</option>
+        <option value="urgent">🔴 Urgent</option><option value="low">🟢 Low</option>
+      </select>
+      <button class="btn btn-approve" id="fs-save-btn" onclick="fsSave()">💾 Save</button>
+      <button class="btn" style="background:var(--fin);color:#fff" onclick="fsSaveApprove()">✓ Approve</button>
+      <button class="btn btn-reject" onclick="fsSaveReject()">✗ Reject</button>
+      <button class="modal-close" onclick="closeEditor()">✕ Close</button>
+    </div>
+  </div>
+  <div class="fs-toolbar">
+    <button class="tbtn" onclick="fsW('# ','',1)">H1</button>
+    <button class="tbtn" onclick="fsW('## ','',1)">H2</button>
+    <button class="tbtn" onclick="fsW('### ','',1)">H3</button>
+    <button class="tbtn" onclick="fsW('#### ','',1)">H4</button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="fsW('**','**')"><b>B</b></button>
+    <button class="tbtn" onclick="fsW('*','*')"><i>I</i></button>
+    <button class="tbtn" onclick="fsW('~~','~~')"><s>S</s></button>
+    <button class="tbtn" onclick="fsW('`','`')">&#96;c&#96;</button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="fsW('- ','',1)">• List</button>
+    <button class="tbtn" onclick="fsNum()">1. List</button>
+    <button class="tbtn" onclick="fsW('> ','',1)">❝ Quote</button>
+    <button class="tbtn" onclick="fsW('> [!NOTE]\n> ','',1)">📣 Callout</button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="fsIns('\n---\n')">─ Divider</button>
+    <button class="tbtn" onclick="fsTable()">⊞ Table</button>
+    <button class="tbtn" onclick="fsIns('\n```\ncode\n```\n')">{ } Code</button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="fsDate()">📅 Date</button>
+    <button class="tbtn" onclick="fsTOC()">≡ TOC</button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="fsUndo()">↩</button>
+    <button class="tbtn" onclick="fsRedo()">↪</button>
+    <div class="tsep"></div>
+    <span style="font-size:11px;color:var(--muted);padding:0 4px">Type <kbd>/</kbd> for blocks</span>
+  </div>
+  <div class="fs-writing">
+    <div class="fs-inner">
+      <textarea id="fs-title-inp" class="fs-title-inp" placeholder="Untitled Document" rows="1" oninput="fsTitleResize(this)"></textarea>
+      <textarea id="fs-content-inp" class="fs-content-inp"
+        placeholder="Start writing… or type / to insert a block"
+        oninput="fsWC();fsTitleResize(document.getElementById('fs-title-inp'))"
+        onkeydown="fsKD(event)" onkeyup="fsKU(event)"></textarea>
+    </div>
+  </div>
+  <div class="fs-footer">
+    <span style="font-size:12px;color:var(--muted)"><kbd>Ctrl+S</kbd> Save &nbsp;<kbd>/</kbd> Blocks &nbsp;<kbd>Tab</kbd> Indent</span>
+    <span class="fs-wc" id="fs-wc">0 words</span>
+  </div>
+</div>
+
+<!-- / Command Palette -->
+<div id="slash-pal" class="slash-pal">
+  <input id="slash-search" class="slash-search" placeholder="Search blocks…" oninput="slashFilter(this.value)" onkeydown="slashKey(event)">
+  <div id="slash-list"></div>
+</div>
+
 <script>
-const API = 'http://localhost:8000/api';
-const COLORS = { HF:'#4CAF50', FIN:'#2196F3', RES:'#9C27B0', ING:'#FF9800', STR:'#F44336' };
-const NAMES  = { HF:'Health & Welfare', FIN:'Finance & Resources',
-                 RES:'Research & Intelligence', ING:'Engineering & Science',
-                 STR:'Strategy & Planning' };
-const PRIO_DOT = { urgent:'#f85149', high:'#d29922', normal:'#3fb950', low:'#8b949e' };
+const API='http://localhost:8000/api';
+const COLORS={HF:'#4CAF50',FIN:'#2196F3',RES:'#9C27B0',ING:'#FF9800',STR:'#F44336'};
+const PRIO={urgent:'#f85149',high:'#d29922',normal:'#3fb950',low:'#8b949e'};
+const ICONS={HF:'🩺',FIN:'💰',RES:'🔬',ING:'⚙️',STR:'🎯'};
+let _vmId=null;
 
-let currentDraftId = null;
-let allDepts = [];
+window.onload=async()=>{await refreshBadge();nav('dashboard');setInterval(refreshBadge,30000);};
 
-// ── Bootstrap ────────────────────────────────────────────────────────────────
-window.onload = async () => {
-  await refreshBadge();
-  navigate('dashboard');
-  setInterval(refreshBadge, 30000);
-};
-
-async function refreshBadge() {
-  try {
-    const r = await fetch(`${API}/drafts/stats`);
-    const s = await r.json();
-    const cnt = s.pending_count || 0;
-    const b = document.getElementById('drafts-badge');
-    if (cnt > 0) { b.textContent = cnt; b.style.display = ''; }
-    else { b.style.display = 'none'; }
-  } catch {}
+async function refreshBadge(){
+  try{const s=await fetch(`${API}/drafts/stats`).then(r=>r.json());
+  const b=document.getElementById('drafts-badge');
+  const c=s.pending_count||0;
+  if(c>0){b.textContent=c;b.style.display='';}else{b.style.display='none';}}catch{}
 }
 
-// ── Router ───────────────────────────────────────────────────────────────────
-function navigate(page, param) {
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const pages = { dashboard: renderDashboard, drafts: renderDrafts,
-                  mail: renderMail, dept: renderDept,
-                  audit: renderAudit, projects: renderProjects };
-  if (pages[page]) pages[page](param);
-}
-
-function setActive(page, param) {
-  document.querySelectorAll('.nav-item').forEach(el => {
-    const onclick = el.getAttribute('onclick') || '';
-    if (onclick.includes(`'${page}'`) && (!param || onclick.includes(`'${param}'`))) {
-      el.classList.add('active');
-    }
+function nav(page,param){
+  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(e=>{
+    const oc=e.getAttribute('onclick')||'';
+    if(oc.includes(`'${page}'`)&&(!param||oc.includes(`'${param}'`)))e.classList.add('active');
   });
+  ({dashboard:renderDash,drafts:renderDrafts,mail:renderMail,dept:renderDept,audit:renderAudit,projects:renderProjects,settings:renderSettings})[page]?.(param);
 }
-</script>
 
-<script>
-// ── Dashboard ─────────────────────────────────────────────────────────────────
-async function renderDashboard() {
-  setActive('dashboard');
-  const main = document.getElementById('main-content');
-  main.innerHTML = `
-    <div class="page-header">
-      <h2>🏛️ Central Think Tank</h2>
-      <p>Live overview of all departments and pending work</p>
-    </div>
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:24px;">
-      <button class="run-all-btn" onclick="runAll()">▶ Run All Departments</button>
-      <span id="run-status" style="font-size:13px;color:var(--muted);"></span>
-    </div>
-    <div id="stats-row" class="grid grid-3" style="margin-bottom:24px;"></div>
-    <div id="dept-grid" class="grid grid-2"></div>`;
+function toast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=err?'var(--red)':'var(--green)';t.style.color=err?'#fff':'#000';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+}
 
-  const [depts, dStats] = await Promise.all([
-    fetch(`${API}/departments`).then(r=>r.json()),
-    fetch(`${API}/drafts/stats`).then(r=>r.json()),
-  ]);
-  allDepts = depts;
-
-  const totalMail = depts.reduce((s,d) => s + (d.unread_mail||0), 0);
-  document.getElementById('stats-row').innerHTML = `
-    <div class="card stat">
-      <div class="stat-value">${depts.length}</div>
-      <div class="stat-label">Active Departments</div>
-    </div>
-    <div class="card stat">
-      <div class="stat-value" style="color:var(--orange)">${dStats.pending_count||0}</div>
-      <div class="stat-label">Drafts Pending Review</div>
-    </div>
-    <div class="card stat">
-      <div class="stat-value" style="color:var(--accent)">${totalMail}</div>
-      <div class="stat-label">Unread Internal Mail</div>
-    </div>`;
-
-  document.getElementById('dept-grid').innerHTML = depts.map(d => `
+/* ── Dashboard ── */
+async function renderDash(){
+  const main=document.getElementById('main');
+  main.innerHTML=`<div class="page-header"><h2>🏛️ Central Think Tank</h2><p>Live overview</p></div>
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:24px;">
+    <button class="run-all-btn" onclick="runAll()">▶ Run All</button>
+    <span id="run-st" style="font-size:13px;color:var(--muted)"></span></div>
+  <div id="stats-row" class="grid grid-3" style="margin-bottom:24px"></div>
+  <div id="dept-grid" class="grid grid-2"></div>`;
+  const [depts,ds]=await Promise.all([fetch(`${API}/departments`).then(r=>r.json()),fetch(`${API}/drafts/stats`).then(r=>r.json())]);
+  const mail=depts.reduce((s,d)=>s+(d.unread_mail||0),0);
+  document.getElementById('stats-row').innerHTML=`
+    <div class="card stat"><div class="stat-value">${depts.length}</div><div class="stat-label">Departments</div></div>
+    <div class="card stat"><div class="stat-value" style="color:var(--orange)">${ds.pending_count||0}</div><div class="stat-label">Pending Drafts</div></div>
+    <div class="card stat"><div class="stat-value" style="color:var(--accent)">${mail}</div><div class="stat-label">Unread Mail</div></div>`;
+  document.getElementById('dept-grid').innerHTML=depts.map(d=>`
     <div class="card dept-card" style="border-left-color:${COLORS[d.id]||'#607D8B'}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div>
-          <div class="dept-name">${d.name}</div>
-          <div class="dept-code">${d.code}</div>
-        </div>
-        <span style="font-size:22px;">${deptIcon(d.id)}</span>
-      </div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div class="dept-name">${d.name}</div><div class="dept-code">${d.code}</div></div>
+        <span style="font-size:22px">${ICONS[d.id]||'🏛️'}</span></div>
       <div class="dept-stats">
-        <div class="dept-stat">
-          <div class="dept-stat-val" style="color:var(--orange)">${d.pending_drafts||0}</div>
-          <div class="dept-stat-lbl">Drafts</div>
-        </div>
-        <div class="dept-stat">
-          <div class="dept-stat-val" style="color:var(--accent)">${d.unread_mail||0}</div>
-          <div class="dept-stat-lbl">Unread Mail</div>
-        </div>
+        <div class="dept-stat"><div class="dept-stat-val" style="color:var(--orange)">${d.pending_drafts||0}</div><div class="dept-stat-lbl">Drafts</div></div>
+        <div class="dept-stat"><div class="dept-stat-val" style="color:var(--accent)">${d.unread_mail||0}</div><div class="dept-stat-lbl">Mail</div></div>
       </div>
-      <button class="run-btn" onclick="runDept('${d.id}', this)">▶ Run Cycle</button>
-      <div class="last-run">Last run: ${d.last_run ? d.last_run.replace('T',' ').substring(0,16) : 'Never'}</div>
+      <button class="run-btn" onclick="runDept('${d.id}',this)">▶ Run Cycle</button>
+      <div class="last-run">Last run: ${d.last_run?d.last_run.replace('T',' ').substring(0,16):'Never'}</div>
     </div>`).join('');
 }
 
-function deptIcon(id) {
-  return {HF:'🩺',FIN:'💰',RES:'🔬',ING:'⚙️',STR:'🎯'}[id] || '🏛️';
+async function runAll(){
+  const s=document.getElementById('run-st');
+  s.innerHTML='<span class="spinner"></span> Starting…';
+  try{await fetch(`${API}/departments/run-all`,{method:'POST'});toast('All cycles started');s.textContent='✓ Started';}
+  catch{s.textContent='✗ Failed';}
 }
-
-async function runAll() {
-  const s = document.getElementById('run-status');
-  s.innerHTML = '<span class="spinner"></span> Starting all departments...';
-  try {
-    await fetch(`${API}/departments/run-all`, {method:'POST'});
-    s.textContent = '✓ All cycles started';
-    toast('All department cycles launched');
-  } catch { s.textContent = '✗ Failed to start'; }
-}
-
-async function runDept(id, btn) {
-  const orig = btn.textContent;
-  btn.innerHTML = '<span class="spinner"></span>';
-  btn.disabled = true;
-  try {
-    await fetch(`${API}/departments/${id}/run`, {method:'POST'});
-    toast(`${id} cycle started`);
-  } catch { toast('Failed to start cycle', true); }
-  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+async function runDept(id,btn){
+  const o=btn.textContent;btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
+  try{await fetch(`${API}/departments/${id}/run`,{method:'POST'});toast(`${id} started`);}
+  catch{toast('Failed',true);}
+  setTimeout(()=>{btn.textContent=o;btn.disabled=false;},2000);
 }
 </script>
 
 <script>
-// ── Drafts page ───────────────────────────────────────────────────────────────
-async function renderDrafts(filter) {
-  setActive('drafts');
-  const main = document.getElementById('main-content');
-  main.innerHTML = `
-    <div class="page-header">
-      <h2>📋 Draft Vault</h2>
-      <p>AI-generated documents awaiting your review and approval</p>
-    </div>
-    <div class="tabs">
-      <div class="tab ${!filter||filter==='pending'?'active':''}" onclick="renderDrafts('pending')">Pending</div>
-      <div class="tab ${filter==='all'?'active':''}" onclick="renderDrafts('all')">All Drafts</div>
-    </div>
-    <div class="card" style="padding:0;">
-      <div id="drafts-list"><div class="empty"><span class="spinner"></span></div></div>
-    </div>`;
-
-  const url = (!filter || filter==='pending')
-    ? `${API}/drafts/pending`
-    : `${API}/drafts?limit=100`;
-  const drafts = await fetch(url).then(r=>r.json());
-  const list = document.getElementById('drafts-list');
-
-  if (!drafts.length) {
-    list.innerHTML = '<div class="empty">✓ No drafts in this view</div>';
-    return;
-  }
-
-  list.innerHTML = drafts.map(d => `
+/* ── Drafts ── */
+async function renderDrafts(filter){
+  const main=document.getElementById('main');
+  main.innerHTML=`<div class="page-header"><h2>📋 Draft Vault</h2><p>AI-generated documents awaiting review</p></div>
+  <div class="tabs">
+    <div class="tab ${!filter||filter==='pending'?'active':''}" onclick="renderDrafts('pending')">Pending</div>
+    <div class="tab ${filter==='all'?'active':''}" onclick="renderDrafts('all')">All Drafts</div>
+    <button class="btn-create" style="margin-left:auto;margin-bottom:4px" onclick="openND()">＋ New Draft</button>
+  </div>
+  <div class="card" style="padding:0"><div id="drafts-list"><div class="empty"><span class="spinner"></span></div></div></div>`;
+  const url=(!filter||filter==='pending')?`${API}/drafts/pending`:`${API}/drafts?limit=100`;
+  const drafts=await fetch(url).then(r=>r.json());
+  const list=document.getElementById('drafts-list');
+  if(!drafts.length){list.innerHTML='<div class="empty">✓ No drafts here</div>';return;}
+  list.innerHTML=drafts.map(d=>`
     <div class="draft-item">
-      <div class="priority-dot" style="background:${PRIO_DOT[d.priority]||'#8b949e'}"></div>
+      <div class="priority-dot" style="background:${PRIO[d.priority]||'#8b949e'}"></div>
       <span class="dept-tag" style="background:${COLORS[d.dept_id]||'#607D8B'}">${d.dept_id}</span>
       <div class="draft-info">
         <div class="draft-title">${d.title}</div>
         <div class="draft-meta">${d.draft_type.toUpperCase()} · ${d.created_at.substring(0,16).replace('T',' ')}
-          ${d.status !== 'pending' ? `· <span style="color:${d.status==='approved'?'var(--green)':'var(--red)'}">${d.status}</span>` : ''}
+          ${d.status!=='pending'?`· <span style="color:${d.status==='approved'?'var(--green)':'var(--red)'}">${d.status}</span>`:''}
         </div>
       </div>
       <div class="draft-actions">
-        <button class="btn btn-view" onclick="viewDraft('${d.id}')">View</button>
-        ${d.status==='pending' ? `
-        <button class="btn btn-approve" onclick="quickReview('${d.id}','approved')">✓</button>
-        <button class="btn btn-reject" onclick="quickReview('${d.id}','rejected')">✗</button>` : ''}
+        <button class="btn btn-view" onclick="openEditor('${d.id}')">✏ Edit</button>
+        <button class="btn" style="background:var(--border);color:var(--text)" onclick="viewDraft('${d.id}')">View</button>
+        ${d.status==='pending'?`<button class="btn btn-approve" onclick="qReview('${d.id}','approved')">✓</button>
+        <button class="btn btn-reject" onclick="qReview('${d.id}','rejected')">✗</button>`:''}
       </div>
     </div>`).join('');
-
   await refreshBadge();
 }
 
-async function viewDraft(id) {
-  const d = await fetch(`${API}/drafts/${id}`).then(r=>r.json());
-  currentDraftId = id;
-  const color = COLORS[d.dept_id] || '#607D8B';
-  document.getElementById('modal-dept-tag').textContent = d.dept_id;
-  document.getElementById('modal-dept-tag').style.background = color;
-  document.getElementById('modal-type').textContent = d.draft_type;
-  document.getElementById('modal-title').textContent = d.title;
-  document.getElementById('modal-meta').textContent =
-    `${d.dept_name} · ${d.created_at.substring(0,16).replace('T',' ')} · Priority: ${d.priority}`;
-  document.getElementById('modal-content').textContent = d.content;
-  const actions = document.querySelector('.modal-actions');
-  if (d.status !== 'pending') {
-    actions.querySelector('.btn-approve').style.display = 'none';
-    actions.querySelector('.btn-reject').style.display = 'none';
-  } else {
-    actions.querySelector('.btn-approve').style.display = '';
-    actions.querySelector('.btn-reject').style.display = '';
-  }
-  document.getElementById('draft-modal').classList.add('open');
+async function viewDraft(id){
+  const d=await fetch(`${API}/drafts/${id}`).then(r=>r.json());
+  _vmId=id;
+  const c=COLORS[d.dept_id]||'#607D8B';
+  document.getElementById('vm-tag').textContent=d.dept_id;document.getElementById('vm-tag').style.background=c;
+  document.getElementById('vm-type').textContent=d.draft_type;
+  document.getElementById('vm-title').textContent=d.title;
+  document.getElementById('vm-meta').textContent=`${d.dept_name} · ${d.created_at.substring(0,16).replace('T',' ')} · ${d.priority}`;
+  document.getElementById('vm-body').textContent=d.content;
+  document.getElementById('vm-approve').style.display=d.status==='pending'?'':'none';
+  document.getElementById('vm-reject').style.display=d.status==='pending'?'':'none';
+  document.getElementById('view-modal').classList.add('open');
 }
+function closeVM(){document.getElementById('view-modal').classList.remove('open');_vmId=null;}
+document.getElementById('view-modal').addEventListener('click',e=>{if(e.target===document.getElementById('view-modal'))closeVM();});
 
-async function reviewDraft(action) {
-  if (!currentDraftId) return;
-  await fetch(`${API}/drafts/${currentDraftId}/review`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({action})
-  });
-  closeModal();
+async function qReview(id,action){
+  await fetch(`${API}/drafts/${id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
   toast(`Draft ${action}`);
+  closeVM();
   renderDrafts('pending');
 }
 
-async function quickReview(id, action) {
-  await fetch(`${API}/drafts/${id}/review`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({action})
-  });
-  toast(`Draft ${action}`);
-  renderDrafts('pending');
+/* ── Mail ── */
+let _allMail=[];
+async function renderMail(){
+  const main=document.getElementById('main');
+  main.innerHTML=`<div class="page-header"><h2>📨 Mail Room</h2><p>Inter-department communications</p></div>
+  <div style="margin-bottom:16px">
+    <select id="mail-filter" onchange="filterMail()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px">
+      <option value="all">All Departments</option>
+      <option value="HF">HF</option><option value="FIN">FIN</option>
+      <option value="RES">RES</option><option value="ING">ING</option><option value="STR">STR</option>
+    </select></div>
+  <div class="card" style="padding:0"><div id="mail-list"><div class="empty"><span class="spinner"></span></div></div></div>`;
+  _allMail=await fetch(`${API}/mail?limit=100`).then(r=>r.json());
+  renderMailList(_allMail);
 }
-
-function closeModal() {
-  document.getElementById('draft-modal').classList.remove('open');
-  currentDraftId = null;
+function filterMail(){const f=document.getElementById('mail-filter').value;renderMailList(f==='all'?_allMail:_allMail.filter(m=>m.from_dept===f||m.to_dept===f));}
+function renderMailList(mails){
+  const l=document.getElementById('mail-list');
+  if(!mails.length){l.innerHTML='<div class="empty">No mail</div>';return;}
+  l.innerHTML=mails.map(m=>{
+    const fc=COLORS[m.from_dept]||'#607D8B',tc=COLORS[m.to_dept]||'#607D8B',u=m.status==='unread';
+    return `<div class="mail-item ${u?'unread':''}" onclick="viewThread('${m.thread_id}','${m.id}')">
+      <span class="arrow-badge" style="background:${fc};color:#fff">${m.from_dept}</span>
+      <span style="color:var(--muted);font-size:12px">→</span>
+      <span class="arrow-badge" style="background:${tc};color:#fff">${m.to_dept}</span>
+      <div style="flex:1;min-width:0;padding:0 8px">
+        <div class="mail-subj ${u?'':''}">${u?'● ':''}<strong>${m.subject}</strong></div>
+        <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.body.substring(0,80)}…</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0"><div class="mail-time">${m.created_at.substring(0,16).replace('T',' ')}</div>
+        <div style="font-size:10px;color:${m.priority==='urgent'?'var(--red)':m.priority==='high'?'var(--orange)':'var(--muted)'}">${m.priority}</div></div>
+    </div>`;}).join('');
 }
-document.getElementById('draft-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('draft-modal')) closeModal();
-});
-</script>
-
-<script>
-// ── Mail Room ─────────────────────────────────────────────────────────────────
-async function renderMail() {
-  setActive('mail');
-  const main = document.getElementById('main-content');
-  main.innerHTML = `
-    <div class="page-header">
-      <h2>📨 Mail Room</h2>
-      <p>All inter-department communications</p>
-    </div>
-    <div style="margin-bottom:16px;">
-      <select id="mail-filter" onchange="filterMail()" style="
-        background:var(--surface);border:1px solid var(--border);color:var(--text);
-        padding:8px 12px;border-radius:6px;font-size:13px;">
-        <option value="all">All Departments</option>
-        <option value="HF">HF — Health & Welfare</option>
-        <option value="FIN">FIN — Finance</option>
-        <option value="RES">RES — Research</option>
-        <option value="ING">ING — Engineering</option>
-        <option value="STR">STR — Strategy</option>
-      </select>
-    </div>
-    <div class="card" style="padding:0;">
-      <div id="mail-list"><div class="empty"><span class="spinner"></span></div></div>
-    </div>`;
-  await loadMail();
-}
-
-let allMail = [];
-async function loadMail() {
-  allMail = await fetch(`${API}/mail?limit=100`).then(r=>r.json());
-  renderMailList(allMail);
-}
-
-function filterMail() {
-  const f = document.getElementById('mail-filter').value;
-  const filtered = f === 'all' ? allMail
-    : allMail.filter(m => m.from_dept===f || m.to_dept===f);
-  renderMailList(filtered);
-}
-
-function renderMailList(mails) {
-  const list = document.getElementById('mail-list');
-  if (!mails.length) { list.innerHTML = '<div class="empty">No mail found</div>'; return; }
-  list.innerHTML = mails.map(m => {
-    const fc = COLORS[m.from_dept]||'#607D8B';
-    const tc = COLORS[m.to_dept]||'#607D8B';
-    const isUnread = m.status === 'unread';
-    return `
-      <div class="mail-item ${isUnread?'unread':''}" onclick="viewThread('${m.thread_id}','${m.id}')">
-        <span class="arrow-badge" style="background:${fc};color:white">${m.from_dept}</span>
-        <span style="color:var(--muted);font-size:12px;">→</span>
-        <span class="arrow-badge" style="background:${tc};color:white">${m.to_dept}</span>
-        <div style="flex:1;min-width:0;padding:0 8px;">
-          <div class="mail-subject ${isUnread?'':''}">
-            ${isUnread ? '● ' : ''}<strong>${m.subject}</strong>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;
-            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.body.substring(0,80)}...</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;">
-          <div class="mail-time">${m.created_at.substring(0,16).replace('T',' ')}</div>
-          <div style="font-size:10px;color:${m.priority==='urgent'?'var(--red)':m.priority==='high'?'var(--orange)':'var(--muted)'}">
-            ${m.priority}</div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-async function viewThread(threadId, mailId) {
-  await fetch(`${API}/mail/${mailId}/read`, {method:'POST'});
-  const thread = await fetch(`${API}/mail/thread/${threadId}`).then(r=>r.json());
-  const main = document.getElementById('main-content');
-  const first = thread[0] || {};
-  main.innerHTML = `
-    <div style="margin-bottom:16px;">
-      <button class="btn btn-view" onclick="renderMail()">← Back to Mail</button>
-    </div>
-    <div class="page-header">
-      <h2>${first.subject || 'Thread'}</h2>
-      <p>${thread.length} message(s) in thread</p>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      ${thread.map(m => `
-        <div class="card">
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
-            <span class="dept-tag" style="background:${COLORS[m.from_dept]||'#607D8B'}">${m.from_dept}</span>
-            <span style="color:var(--muted);font-size:12px;">→</span>
-            <span class="dept-tag" style="background:${COLORS[m.to_dept]||'#607D8B'}">${m.to_dept}</span>
-            <span style="margin-left:auto;font-size:11px;color:var(--muted);">
-              ${m.created_at.substring(0,16).replace('T',' ')}
-              · <span style="color:${m.priority==='urgent'?'var(--red)':m.priority==='high'?'var(--orange)':'var(--muted)'}">${m.priority}</span>
-            </span>
-          </div>
-          <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;">${m.body}</div>
-        </div>`).join('')}
-    </div>`;
+async function viewThread(tid,mid){
+  await fetch(`${API}/mail/${mid}/read`,{method:'POST'});
+  const thread=await fetch(`${API}/mail/thread/${tid}`).then(r=>r.json());
+  const main=document.getElementById('main');const first=thread[0]||{};
+  main.innerHTML=`<div style="margin-bottom:16px"><button class="btn btn-view" onclick="renderMail()">← Back</button></div>
+  <div class="page-header"><h2>${first.subject||'Thread'}</h2><p>${thread.length} message(s)</p></div>
+  <div style="display:flex;flex-direction:column;gap:12px">${thread.map(m=>`
+    <div class="card">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+        <span class="dept-tag" style="background:${COLORS[m.from_dept]||'#607D8B'}">${m.from_dept}</span>
+        <span style="color:var(--muted);font-size:12px">→</span>
+        <span class="dept-tag" style="background:${COLORS[m.to_dept]||'#607D8B'}">${m.to_dept}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted)">${m.created_at.substring(0,16).replace('T',' ')}</span>
+      </div>
+      <div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${m.body}</div>
+    </div>`).join('')}</div>`;
   await refreshBadge();
 }
 </script>
 
 <script>
-// ── Department detail page ────────────────────────────────────────────────────
-async function renderDept(id) {
-  setActive('dept', id);
-  const main = document.getElementById('main-content');
-  const color = COLORS[id] || '#607D8B';
-  main.innerHTML = `<div class="empty"><span class="spinner"></span></div>`;
-
-  const [dept, drafts, mail] = await Promise.all([
+/* ── Department page ── */
+async function renderDept(id){
+  const main=document.getElementById('main');
+  main.innerHTML=`<div class="empty"><span class="spinner"></span></div>`;
+  const [dept,drafts,mail]=await Promise.all([
     fetch(`${API}/departments/${id}`).then(r=>r.json()),
     fetch(`${API}/drafts/pending?dept_id=${id}`).then(r=>r.json()),
     fetch(`${API}/mail/${id}/all?limit=20`).then(r=>r.json()),
   ]);
-
-  main.innerHTML = `
-    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
-      <div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-          <span style="font-size:32px;">${deptIcon(id)}</span>
-          <div>
-            <h2>${dept.name}</h2>
-            <p>${dept.description||''}</p>
-          </div>
-        </div>
+  main.innerHTML=`
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:32px">${ICONS[id]||'🏛️'}</span>
+        <div><h2>${dept.name}</h2><p>${dept.description||''}</p></div>
       </div>
       <button class="run-all-btn" onclick="runDeptPage('${id}',this)">▶ Run Cycle</button>
     </div>
-
-    <div class="grid grid-3" style="margin-bottom:24px;">
-      <div class="card stat">
-        <div class="stat-value" style="color:var(--orange)">${drafts.length}</div>
-        <div class="stat-label">Pending Drafts</div>
-      </div>
-      <div class="card stat">
-        <div class="stat-value" style="color:var(--accent)">${mail.filter(m=>m.status==='unread'&&m.to_dept===id).length}</div>
-        <div class="stat-label">Unread Mail</div>
-      </div>
-      <div class="card stat">
-        <div class="stat-value" style="color:var(--green)">${(dept.projects||[]).length}</div>
-        <div class="stat-label">Active Projects</div>
-      </div>
+    <div class="grid grid-3" style="margin-bottom:24px">
+      <div class="card stat"><div class="stat-value" style="color:var(--orange)">${drafts.length}</div><div class="stat-label">Pending Drafts</div></div>
+      <div class="card stat"><div class="stat-value" style="color:var(--accent)">${mail.filter(m=>m.status==='unread'&&m.to_dept===id).length}</div><div class="stat-label">Unread Mail</div></div>
+      <div class="card stat"><div class="stat-value" style="color:var(--green)">${(dept.projects||[]).length}</div><div class="stat-label">Projects</div></div>
     </div>
-
     <div class="grid grid-2">
-      <!-- Projects -->
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">Active Projects</span>
-        </div>
-        ${(dept.projects||[]).length === 0
-          ? '<div class="empty">No active projects</div>'
-          : (dept.projects||[]).map(p => `
-            <div style="padding:10px 0;border-bottom:1px solid var(--border);">
-              <div style="font-size:13px;font-weight:600;color:var(--text);">${p.name}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:3px;">${p.description||''}</div>
-              <div style="margin-top:4px;">
-                <span style="font-size:10px;color:${PRIO_DOT[p.priority]};font-weight:700;text-transform:uppercase;">${p.priority}</span>
-              </div>
-            </div>`).join('')}
+        <div class="card-header"><span class="card-title">Active Projects</span></div>
+        ${(dept.projects||[]).length?dept.projects.map(p=>`
+          <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="font-size:13px;font-weight:600">${p.name}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">${p.description||''}</div>
+            <span style="font-size:10px;color:${PRIO[p.priority]};font-weight:700;text-transform:uppercase">${p.priority}</span>
+          </div>`).join(''):'<div class="empty">No projects</div>'}
       </div>
-
-      <!-- Pending Drafts -->
-      <div class="card" style="padding:0;">
-        <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
-          <span class="card-title">Pending Drafts</span>
-        </div>
-        ${drafts.length === 0
-          ? '<div class="empty">No pending drafts</div>'
-          : drafts.map(d => `
-            <div class="draft-item">
-              <div class="priority-dot" style="background:${PRIO_DOT[d.priority]||'#8b949e'}"></div>
-              <div class="draft-info">
-                <div class="draft-title">${d.title}</div>
-                <div class="draft-meta">${d.draft_type.toUpperCase()} · ${d.created_at.substring(0,10)}</div>
-              </div>
-              <div class="draft-actions">
-                <button class="btn btn-view" onclick="viewDraft('${d.id}')">View</button>
-                <button class="btn btn-approve" onclick="quickReview('${d.id}','approved')">✓</button>
-              </div>
-            </div>`).join('')}
+      <div class="card" style="padding:0">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)"><span class="card-title">Pending Drafts</span></div>
+        ${drafts.length?drafts.map(d=>`
+          <div class="draft-item">
+            <div class="priority-dot" style="background:${PRIO[d.priority]||'#8b949e'}"></div>
+            <div class="draft-info"><div class="draft-title">${d.title}</div><div class="draft-meta">${d.draft_type.toUpperCase()} · ${d.created_at.substring(0,10)}</div></div>
+            <div class="draft-actions">
+              <button class="btn btn-view" onclick="openEditor('${d.id}')">✏ Edit</button>
+              <button class="btn btn-approve" onclick="qReview('${d.id}','approved')">✓</button>
+            </div>
+          </div>`).join(''):'<div class="empty">No pending drafts</div>'}
       </div>
     </div>
-
-    <!-- Recent mail -->
-    <div class="card" style="margin-top:16px;padding:0;">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
-        <span class="card-title">Recent Mail</span>
-      </div>
-      ${mail.length === 0
-        ? '<div class="empty">No mail</div>'
-        : mail.slice(0,8).map(m => `
-          <div class="mail-item ${m.status==='unread'&&m.to_dept===id?'unread':''}"
-               onclick="viewThread('${m.thread_id}','${m.id}')">
-            <span class="arrow-badge" style="background:${COLORS[m.from_dept]||'#607D8B'};color:white;">${m.from_dept}</span>
-            <span style="color:var(--muted);font-size:11px;margin:0 4px;">→</span>
-            <span class="arrow-badge" style="background:${COLORS[m.to_dept]||'#607D8B'};color:white;">${m.to_dept}</span>
-            <div style="flex:1;padding:0 10px;min-width:0;">
-              <div class="mail-subject" style="font-size:13px;">${m.subject}</div>
-            </div>
-            <div class="mail-time">${m.created_at.substring(0,10)}</div>
-          </div>`).join('')}
+    <div class="card" style="margin-top:16px;padding:0">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border)"><span class="card-title">Recent Mail</span></div>
+      ${mail.length?mail.slice(0,8).map(m=>`
+        <div class="mail-item" onclick="viewThread('${m.thread_id}','${m.id}')">
+          <span class="arrow-badge" style="background:${COLORS[m.from_dept]||'#607D8B'};color:#fff">${m.from_dept}</span>
+          <span style="color:var(--muted);font-size:11px;margin:0 4px">→</span>
+          <span class="arrow-badge" style="background:${COLORS[m.to_dept]||'#607D8B'};color:#fff">${m.to_dept}</span>
+          <div style="flex:1;padding:0 10px;min-width:0"><div class="mail-subj" style="font-size:13px">${m.subject}</div></div>
+          <div class="mail-time">${m.created_at.substring(0,10)}</div>
+        </div>`).join(''):'<div class="empty">No mail</div>'}
     </div>`;
 }
+async function runDeptPage(id,btn){
+  const o=btn.textContent;btn.innerHTML='<span class="spinner"></span> Running…';btn.disabled=true;
+  await fetch(`${API}/departments/${id}/run`,{method:'POST'});toast(`${id} cycle started`);
+  setTimeout(()=>{btn.textContent=o;btn.disabled=false;},3000);
+}
 
-async function runDeptPage(id, btn) {
-  const orig = btn.textContent;
-  btn.innerHTML = '<span class="spinner"></span> Running...';
-  btn.disabled = true;
-  await fetch(`${API}/departments/${id}/run`, {method:'POST'});
-  toast(`${id} cycle started`);
-  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+/* ── Audit ── */
+async function renderAudit(){
+  const main=document.getElementById('main');
+  main.innerHTML=`<div class="page-header"><h2>🔍 Audit Log</h2><p>Full activity history</p></div>
+  <div class="card" style="padding:0"><div id="audit-list"><div class="empty"><span class="spinner"></span></div></div></div>`;
+  const events=await fetch(`${API}/admin/audit?limit=100`).then(r=>r.json());
+  const icons={cycle_start:'🔄',cycle_error:'❌',mail_sent:'📨',draft_created:'📝',draft_reviewed:'✅',orchestrator_run:'🏛️'};
+  const l=document.getElementById('audit-list');
+  if(!events.length){l.innerHTML='<div class="empty">No events</div>';return;}
+  l.innerHTML=events.map(e=>`
+    <div style="display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:flex-start">
+      <span style="font-size:16px;flex-shrink:0">${icons[e.event_type]||'📌'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${e.dept_id?`<span style="color:${COLORS[e.dept_id]||'#607D8B'};font-weight:700">[${e.dept_id}]</span> `:''}${e.description}</div>
+        <div style="font-size:11px;color:var(--muted)">${e.event_type}</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);white-space:nowrap">${e.created_at.substring(0,16).replace('T',' ')}</div>
+    </div>`).join('');
+}
+
+/* ── Projects ── */
+async function renderProjects(){
+  const main=document.getElementById('main');
+  main.innerHTML=`<div class="page-header"><h2>📁 All Projects</h2><p>Active projects across all departments</p></div>
+  <div class="card" style="padding:0"><div id="proj-list"><div class="empty"><span class="spinner"></span></div></div></div>`;
+  const projects=await fetch(`${API}/admin/projects`).then(r=>r.json());
+  const l=document.getElementById('proj-list');
+  if(!projects.length){l.innerHTML='<div class="empty">No projects</div>';return;}
+  let ld=null;
+  l.innerHTML=projects.map(p=>{
+    const hdr=p.dept_id!==ld?`<div style="padding:10px 16px 4px;background:var(--bg);border-bottom:1px solid var(--border)"><span class="dept-tag" style="background:${COLORS[p.dept_id]||'#607D8B'}">${p.dept_id}</span><span style="font-size:12px;color:var(--muted);margin-left:8px">${p.dept_name}</span></div>`:'';
+    ld=p.dept_id;
+    return hdr+`<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start">
+      <div class="priority-dot" style="background:${PRIO[p.priority]||'#8b949e'};margin-top:5px"></div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${p.name}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${p.description||''}</div></div>
+      <div style="font-size:11px;color:${PRIO[p.priority]};font-weight:700;text-transform:uppercase;white-space:nowrap">${p.priority}</div>
+    </div>`;}).join('');
 }
 </script>
 
 <script>
-// ── Audit Log ─────────────────────────────────────────────────────────────────
-async function renderAudit() {
-  setActive('audit');
-  const main = document.getElementById('main-content');
-  main.innerHTML = `
-    <div class="page-header">
-      <h2>🔍 Audit Log</h2>
-      <p>Full activity history of the think tank</p>
-    </div>
-    <div class="card" style="padding:0;">
-      <div id="audit-list"><div class="empty"><span class="spinner"></span></div></div>
-    </div>`;
+/* ── New Draft ── */
+function openND(dept){
+  document.getElementById('nd-title').value='';
+  document.getElementById('nd-content').value='';
+  document.getElementById('nd-type').value='strategy';
+  document.getElementById('nd-priority').value='normal';
+  document.getElementById('nd-err').textContent='';
+  if(dept)document.getElementById('nd-dept').value=dept;
+  ndWC();
+  document.getElementById('nd-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('nd-title').focus(),80);
+}
+function closeND(){document.getElementById('nd-modal').classList.remove('open');}
+document.getElementById('nd-modal').addEventListener('click',e=>{if(e.target===document.getElementById('nd-modal'))closeND();});
 
-  const events = await fetch(`${API}/admin/audit?limit=100`).then(r=>r.json());
-  const list = document.getElementById('audit-list');
-  if (!events.length) { list.innerHTML = '<div class="empty">No events yet</div>'; return; }
-
-  const ICONS = {
-    cycle_start:'🔄', cycle_error:'❌', mail_sent:'📨',
-    draft_created:'📝', draft_reviewed:'✅', orchestrator_run:'🏛️'
-  };
-
-  list.innerHTML = events.map(e => `
-    <div style="display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);
-                align-items:flex-start;">
-      <span style="font-size:16px;flex-shrink:0;">${ICONS[e.event_type]||'📌'}</span>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;">
-          ${e.dept_id ? `<span style="color:${COLORS[e.dept_id]||'#607D8B'};font-weight:700;">[${e.dept_id}]</span> ` : ''}
-          ${e.description}
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${e.event_type}</div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0;">
-        ${e.created_at.substring(0,16).replace('T',' ')}
-      </div>
-    </div>`).join('');
+function ndWC(){
+  const v=document.getElementById('nd-content').value;
+  document.getElementById('nd-wc').textContent=v.trim().split(/\s+/).filter(Boolean).length.toLocaleString()+' words';
 }
 
-// ── Projects page ─────────────────────────────────────────────────────────────
-async function renderProjects() {
-  setActive('projects');
-  const main = document.getElementById('main-content');
-  main.innerHTML = `
-    <div class="page-header">
-      <h2>📁 All Projects</h2>
-      <p>Active projects across all departments</p>
-    </div>
-    <div class="card" style="padding:0;">
-      <div id="proj-list"><div class="empty"><span class="spinner"></span></div></div>
-    </div>`;
+async function submitND(openAfter){
+  const title=document.getElementById('nd-title').value.trim();
+  const content=document.getElementById('nd-content').value.trim();
+  const dept_id=document.getElementById('nd-dept').value;
+  const type=document.getElementById('nd-type').value;
+  const priority=document.getElementById('nd-priority').value;
+  const err=document.getElementById('nd-err');
+  if(!title){err.textContent='Title required.';return;}
+  if(!content){err.textContent='Content required.';return;}
+  err.textContent='';
+  const b1=document.getElementById('nd-btn'),b2=document.getElementById('nd-btn2');
+  b1.textContent='⏳…';b1.disabled=b2.disabled=true;
+  try{
+    const data=await fetch(`${API}/drafts`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({dept_id,draft_type:type,title,content,priority})}).then(r=>r.json());
+    if(data.draft_id){toast('Draft created ✓');closeND();await refreshBadge();
+      if(openAfter)openEditor(data.draft_id);
+      else{const m=document.getElementById('main');if(m.querySelector('#drafts-list'))renderDrafts('pending');}
+    }else{err.textContent='Server error.';}
+  }catch(e){err.textContent='Network error: '+e.message;}
+  b1.textContent='💾 Create Draft';b1.disabled=b2.disabled=false;
+}
+</script>
 
-  const projects = await fetch(`${API}/admin/projects`).then(r=>r.json());
-  const list = document.getElementById('proj-list');
-  if (!projects.length) { list.innerHTML = '<div class="empty">No projects found</div>'; return; }
+<script>
+/* ════════════════════════════════════════════
+   FULL-SCREEN EDITOR
+   ════════════════════════════════════════════ */
+let _eid=null,_edata=null,_undos=[],_redos=[];
 
-  let lastDept = null;
-  list.innerHTML = projects.map(p => {
-    const header = p.dept_id !== lastDept
-      ? `<div style="padding:10px 16px 4px;background:var(--bg);border-bottom:1px solid var(--border);">
-           <span class="dept-tag" style="background:${COLORS[p.dept_id]||'#607D8B'}">${p.dept_id}</span>
-           <span style="font-size:12px;color:var(--muted);margin-left:8px;">${p.dept_name}</span>
-         </div>`
-      : '';
-    lastDept = p.dept_id;
-    return `${header}
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;">
-        <div class="priority-dot" style="background:${PRIO_DOT[p.priority]||'#8b949e'};margin-top:5px;"></div>
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;color:var(--text);">${p.name}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">${p.description||''}</div>
-        </div>
-        <div style="font-size:11px;color:${PRIO_DOT[p.priority]};font-weight:700;text-transform:uppercase;white-space:nowrap;">
-          ${p.priority}
-        </div>
-      </div>`;
-  }).join('');
+async function openEditor(id){
+  const d=await fetch(`${API}/drafts/${id}`).then(r=>r.json());
+  _eid=id;_edata=d;_undos=[];_redos=[];
+  const c=COLORS[d.dept_id]||'#607D8B';
+  document.getElementById('fs-tag').textContent=d.dept_id;
+  document.getElementById('fs-tag').style.background=c;
+  document.getElementById('fs-name').textContent=d.title||'Untitled';
+  document.getElementById('fs-title-inp').value=d.title||'';
+  document.getElementById('fs-content-inp').value=d.content||'';
+  document.getElementById('fs-type').value=d.draft_type;
+  document.getElementById('fs-priority').value=d.priority;
+  const sb=document.getElementById('fs-status');
+  sb.textContent=d.status;sb.className='fs-status status-'+d.status;
+  fsTitleResize(document.getElementById('fs-title-inp'));
+  fsWC();fsSnap();
+  document.getElementById('fs-editor').classList.add('open');
+  document.getElementById('fs-content-inp').focus();
+}
+function closeEditor(){
+  document.getElementById('fs-editor').classList.remove('open');
+  slashClose();_eid=null;_edata=null;
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-function toast(msg, isError=false) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = isError ? 'var(--red)' : 'var(--green)';
-  t.style.color = isError ? 'white' : '#000';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+async function _fsPatch(action){
+  if(!_eid)return;
+  const title=document.getElementById('fs-title-inp').value.trim();
+  const content=document.getElementById('fs-content-inp').value;
+  const draft_type=document.getElementById('fs-type').value;
+  const priority=document.getElementById('fs-priority').value;
+  await fetch(`${API}/drafts/${_eid}/update`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title,content,draft_type,priority})});
+  if(action)await fetch(`${API}/drafts/${_eid}/review`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action})});
+  document.getElementById('fs-name').textContent=title||'Untitled';
+}
+
+async function fsSave(){
+  const btn=document.getElementById('fs-save-btn');
+  btn.textContent='⏳';btn.disabled=true;
+  try{await _fsPatch(null);toast('Saved ✓');}catch{toast('Save failed',true);}
+  btn.textContent='💾 Save';btn.disabled=false;
+}
+async function fsSaveApprove(){await _fsPatch('approved');toast('Saved & approved ✓');closeEditor();renderDrafts('pending');await refreshBadge();}
+async function fsSaveReject(){await _fsPatch('rejected');toast('Rejected');closeEditor();renderDrafts('pending');await refreshBadge();}
+
+/* Toolbar */
+function fsW(pre,post,line){
+  const ta=document.getElementById('fs-content-inp');
+  const s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.substring(s,e);
+  fsSnap();
+  const rep=line?(sel||'text').split('\n').map(l=>pre+l).join('\n'):pre+(sel||'text')+post;
+  ta.value=ta.value.substring(0,s)+rep+ta.value.substring(e);
+  ta.selectionStart=s;ta.selectionEnd=s+rep.length;ta.focus();fsWC();
+}
+function fsIns(txt){
+  const ta=document.getElementById('fs-content-inp'),s=ta.selectionStart;
+  fsSnap();ta.value=ta.value.substring(0,s)+txt+ta.value.substring(s);
+  ta.selectionStart=ta.selectionEnd=s+txt.length;ta.focus();fsWC();
+}
+function fsNum(){
+  const ta=document.getElementById('fs-content-inp'),s=ta.selectionStart,e=ta.selectionEnd;
+  const sel=ta.value.substring(s,e)||'Item';fsSnap();
+  const rep=sel.split('\n').map((l,i)=>`${i+1}. ${l}`).join('\n');
+  ta.value=ta.value.substring(0,s)+rep+ta.value.substring(e);ta.focus();fsWC();
+}
+function fsDate(){fsIns(new Date().toISOString().split('T')[0]);}
+function fsTable(){fsIns('\n| Col 1 | Col 2 | Col 3 |\n|-------|-------|-------|\n| Cell  | Cell  | Cell  |\n');}
+function fsTOC(){fsIns('\n## Table of Contents\n\n- [Section 1](#section-1)\n- [Section 2](#section-2)\n\n');}
+function fsTitleResize(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+function fsWC(){
+  const v=document.getElementById('fs-content-inp').value;
+  document.getElementById('fs-wc').textContent=v.trim().split(/\s+/).filter(Boolean).length.toLocaleString()+' words · '+v.length.toLocaleString()+' chars';
+}
+function fsSnap(){
+  const v=document.getElementById('fs-content-inp').value;
+  if(!_undos.length||_undos[_undos.length-1]!==v){_undos.push(v);_redos=[];if(_undos.length>100)_undos.shift();}
+}
+function fsUndo(){const ta=document.getElementById('fs-content-inp');if(_undos.length<2)return;_redos.push(_undos.pop());ta.value=_undos[_undos.length-1];fsWC();}
+function fsRedo(){const ta=document.getElementById('fs-content-inp');if(!_redos.length)return;const v=_redos.pop();_undos.push(v);ta.value=v;fsWC();}
+
+function fsKD(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();fsSave();return;}
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();fsUndo();return;}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();fsRedo();return;}
+  if(e.key==='Tab'){e.preventDefault();fsIns('    ');return;}
+  if(e.key==='Escape'){slashClose();return;}
+  if(_slashOpen){
+    if(e.key==='ArrowDown'){e.preventDefault();slashMove(1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();slashMove(-1);}
+    else if(e.key==='Enter'){e.preventDefault();slashCommit();}
+  }
+}
+</script>
+
+<script>
+/* ── / Slash palette ── */
+let _slashOpen=false,_slashStart=-1,_slashPos=0,_slashFiltered=[];
+
+const BLOCKS=[
+  {g:'Text',    ic:'¶',  n:'Paragraph',      d:'A plain text block.',              ins:'\n'},
+  {g:'Text',    ic:'T',  n:'Heading 1',       d:'Big important heading.',           ins:'\n# '},
+  {g:'Text',    ic:'T',  n:'Heading 2',       d:'Secondary heading.',               ins:'\n## '},
+  {g:'Text',    ic:'T',  n:'Heading 3',       d:'Smaller heading.',                 ins:'\n### '},
+  {g:'Text',    ic:'T',  n:'Heading 4',       d:'Smallest heading.',                ins:'\n#### '},
+  {g:'Text',    ic:'≡',  n:'Bulleted List',   d:'Simple bulleted list.',            ins:'\n- '},
+  {g:'Text',    ic:'1',  n:'Numbered List',   d:'Numbered ordered list.',           ins:'\n1. '},
+  {g:'Text',    ic:'—',  n:'Divider',         d:'Horizontal line.',                 ins:'\n\n---\n\n'},
+  {g:'Text',    ic:'❝',  n:'Blockquote',      d:'Highlight a quote.',               ins:'\n> '},
+  {g:'Text',    ic:'📣', n:'Callout',         d:'Highlight important content.',     ins:'\n> [!NOTE]\n> '},
+  {g:'Structure',ic:'⊞', n:'Table',           d:'Create a simple table.',           ins:'\n| Col 1 | Col 2 | Col 3 |\n|-------|-------|-------|\n| Cell  | Cell  | Cell  |\n'},
+  {g:'Structure',ic:'{}',n:'Code Block',      d:'Insert a fenced code block.',      ins:'\n```\ncode here\n```\n'},
+  {g:'Structure',ic:'`', n:'Inline Code',     d:'Inline code span.',                ins:'`code`'},
+  {g:'Structure',ic:'≣', n:'Table of Contents',d:'List of headings.',              ins:'\n## Table of Contents\n\n- [Section 1](#section-1)\n- [Section 2](#section-2)\n\n'},
+  {g:'Structure',ic:'▶', n:'Collapsible H1',  d:'Collapsible main heading.',        ins:'\n<details>\n<summary>Section</summary>\n\nContent here\n\n</details>\n'},
+  {g:'Structure',ic:'▶', n:'Collapsible H2',  d:'Collapsible secondary heading.',   ins:'\n<details>\n<summary>Section</summary>\n\nContent\n\n</details>\n'},
+  {g:'Structure',ic:'⊟', n:'Two Columns',     d:'Two-column layout.',               ins:'\n| Left | Right |\n|------|-------|\n|      |       |\n'},
+  {g:'Insert',  ic:'📅', n:'Date',            d:"Today's date.",                    ins:new Date().toISOString().split('T')[0]},
+  {g:'Insert',  ic:'🔔', n:'Reminder',        d:'Set a reminder block.',            ins:'\n> [!REMINDER]\n> Date: YYYY-MM-DD\n> Note: \n'},
+  {g:'Insert',  ic:'📄', n:'Page Break',      d:'Insert a page separator.',         ins:'\n\n---\n*— Page Break —*\n\n---\n\n'},
+  {g:'Insert',  ic:'🗂', n:'Project',         d:'New project block.',               ins:'\n## Project: [Name]\n**Status:** Active\n**Priority:** High\n**Owner:** \n**Deadline:** \n\n### Objectives\n- \n\n### Key Results\n- \n'},
+  {g:'Insert',  ic:'📊', n:'Inline Database', d:'Database inside this page.',       ins:'\n| # | Name | Status | Priority | Date |\n|---|------|--------|----------|------|\n| 1 |      |        |          |      |\n'},
+  {g:'Insert',  ic:'🧠', n:'Entity Mention',  d:'Reference a department/project.',  ins:'[['},
+];
+
+function fsKU(e){
+  const ta=document.getElementById('fs-content-inp'),pos=ta.selectionStart,val=ta.value;
+  if(e.key==='/'){_slashStart=pos-1;_slashFiltered=BLOCKS;slashOpen(ta,pos);slashRender('');return;}
+  if(!_slashOpen)return;
+  if(_slashStart>=0&&pos>_slashStart){
+    const q=val.substring(_slashStart+1,pos);
+    if(/\n/.test(q)){slashClose();return;}
+    slashRender(q);
+  }else{slashClose();}
+}
+
+function slashOpen(ta,caretPos){
+  _slashOpen=true;_slashPos=0;
+  const pal=document.getElementById('slash-pal');pal.classList.add('open');
+  document.getElementById('slash-search').value='';
+  const rect=ta.getBoundingClientRect(),lh=27;
+  const lines=ta.value.substring(0,caretPos).split('\n');
+  const ln=lines.length,col=lines[ln-1].length;
+  let top=rect.top+(ln*lh)-ta.scrollTop+10,left=rect.left+Math.min(col*8,300);
+  top=Math.min(top,window.innerHeight-380);left=Math.min(left,window.innerWidth-320);
+  pal.style.top=top+'px';pal.style.left=left+'px';
+}
+function slashClose(){
+  _slashOpen=false;_slashStart=-1;
+  document.getElementById('slash-pal').classList.remove('open');
+}
+function slashFilter(q){slashRender(q);}
+function slashRender(q){
+  const lq=q.toLowerCase().trim();
+  _slashFiltered=lq?BLOCKS.filter(b=>b.n.toLowerCase().includes(lq)||b.d.toLowerCase().includes(lq)||b.g.toLowerCase().includes(lq)):BLOCKS;
+  _slashPos=0;
+  const list=document.getElementById('slash-list');
+  if(!_slashFiltered.length){list.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">No results</div>';return;}
+  let html='',lg=null;
+  _slashFiltered.forEach((b,i)=>{
+    if(b.g!==lg){html+=`<div class="slash-grp">${b.g}</div>`;lg=b.g;}
+    html+=`<div class="slash-item ${i===0?'sel':''}" data-i="${i}" onclick="slashSelect(${i})">
+      <div class="slash-ico">${b.ic}</div>
+      <div class="slash-info"><div class="slash-name">${b.n}</div><div class="slash-desc">${b.d}</div></div>
+    </div>`;
+  });
+  list.innerHTML=html;
+}
+function slashMove(d){
+  _slashPos=Math.max(0,Math.min(_slashFiltered.length-1,_slashPos+d));
+  document.querySelectorAll('.slash-item').forEach((el,i)=>{
+    el.classList.toggle('sel',i===_slashPos);
+    if(i===_slashPos)el.scrollIntoView({block:'nearest'});
+  });
+}
+function slashSelect(i){_slashPos=i;slashCommit();}
+function slashKey(e){
+  if(e.key==='ArrowDown'){e.preventDefault();slashMove(1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();slashMove(-1);}
+  else if(e.key==='Enter'){e.preventDefault();slashCommit();}
+  else if(e.key==='Escape'){slashClose();}
+}
+function slashCommit(){
+  if(!_slashFiltered[_slashPos])return;
+  const b=_slashFiltered[_slashPos];
+  const ta=document.getElementById('fs-content-inp'),pos=ta.selectionStart;
+  const before=ta.value.substring(0,_slashStart);
+  const after=ta.value.substring(pos);
+  fsSnap();
+  ta.value=before+b.ins+after;
+  ta.selectionStart=ta.selectionEnd=before.length+b.ins.length;
+  ta.focus();fsWC();slashClose();
+}
+</script>
+
+<script>
+/* ════════════════════════════════════════════
+   SETTINGS PAGE
+   ════════════════════════════════════════════ */
+
+async function renderSettings() {
+  const main = document.getElementById('main');
+  main.innerHTML = `<div class="empty"><span class="spinner"></span></div>`;
+
+  const s = await fetch(`${API}/settings`).then(r => r.json());
+  const isOllama = s.ai_backend === 'ollama';
+
+  main.innerHTML = `
+  <div class="page-header">
+    <h2>⚙️ Settings</h2>
+    <p>Configure AI backend, models, and connections</p>
+  </div>
+
+  <!-- Current status banner -->
+  <div class="s-section">
+    <h3>Active Configuration</h3>
+    <div class="s-row">
+      <div class="s-info">
+        <div class="s-label">AI Backend</div>
+        <div class="s-desc">Currently routing tasks to the selected backend. Heavy tasks always use Claude when set.</div>
+      </div>
+      <div class="s-ctrl">
+        <span id="backend-indicator" class="backend-indicator ${isOllama ? 'bi-ollama' : 'bi-claude'}">
+          ${isOllama ? '🟢 Ollama (local)' : '🔵 Claude API'}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backend selector -->
+  <div class="s-section">
+    <h3>🤖 AI Backend</h3>
+    <div class="s-row">
+      <div class="s-info">
+        <div class="s-label">Select Backend</div>
+        <div class="s-desc">Choose between Anthropic's Claude API (cloud, best quality) or a local Ollama instance (offline, private).</div>
+      </div>
+      <div class="s-ctrl">
+        <div class="toggle-wrap">
+          <button class="toggle-opt ${!isOllama ? 'on' : ''}" id="tb-claude" onclick="setBackend('claude')">🔵 Claude API</button>
+          <button class="toggle-opt ${isOllama ? 'on' : ''}" id="tb-ollama" onclick="setBackend('ollama')">🟢 Ollama</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Claude panel -->
+  <div class="s-section s-panel ${isOllama ? 'hidden' : ''}" id="claude-panel">
+    <h3>🔵 Claude API Settings</h3>
+    <div class="s-row">
+      <div class="s-info">
+        <div class="s-label">API Key</div>
+        <div class="s-desc">Your Anthropic API key. Get one at console.anthropic.com</div>
+      </div>
+      <div class="s-ctrl">
+        <input class="s-inp wide" type="password" id="s-claude-key"
+          placeholder="sk-ant-…" value="${s.claude_api_key || ''}">
+      </div>
+    </div>
+    <div class="s-row">
+      <div class="s-info">
+        <div class="s-label">Model</div>
+        <div class="s-desc">Which Claude model to use for generation tasks.</div>
+      </div>
+      <div class="s-ctrl">
+        <select class="s-sel" id="s-claude-model">
+          <option value="claude-sonnet-4-20250514">claude-sonnet-4-20250514 (recommended)</option>
+          <option value="claude-opus-4-5">claude-opus-4-5</option>
+          <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
+          <option value="claude-haiku-4-5">claude-haiku-4-5 (fast)</option>
+          <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+          <option value="claude-3-5-haiku-20241022">claude-3-5-haiku-20241022</option>
+          <option value="claude-3-opus-20240229">claude-3-opus-20240229</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ollama panel -->
+  <div class="s-section s-panel ${!isOllama ? 'hidden' : ''}" id="ollama-panel">
+    <h3>🟢 Ollama Settings</h3>
+    <div class="s-row">
+      <div class="s-info">
+        <div class="s-label">Ollama URL</div>
+        <div class="s-desc">Base URL of your local Ollama instance. Default: http://localhost:11434</div>
+      </div>
+      <div class="s-ctrl" style="gap:8px">
+        <input class="s-inp" id="s-ollama-url" value="${s.ollama_base_url || 'http://localhost:11434'}" placeholder="http://localhost:11434">
+        <button class="s-btn" onclick="probeOllama()">🔍 Test</button>
+      </div>
+    </div>
+    <div id="probe-result" style="display:none;margin:0 0 8px 0"></div>
+    <div class="s-row">
+      <div class="s-info">
+        <div class="s-label">Model</div>
+        <div class="s-desc">Which Ollama model to use. Click Fetch to load installed models.</div>
+      </div>
+      <div class="s-ctrl" style="gap:8px;flex-wrap:wrap">
+        <select class="s-sel" id="s-ollama-model">
+          <option value="${s.ollama_model||'llama3'}">${s.ollama_model||'llama3'}</option>
+        </select>
+        <button class="s-btn" onclick="fetchOllamaModels()">⬇ Fetch Models</button>
+      </div>
+    </div>
+    <div class="s-row">
+      <div class="s-info">
+        <div class="s-label">Timeout (seconds)</div>
+        <div class="s-desc">Max wait time for Ollama responses. Larger models need more time.</div>
+      </div>
+      <div class="s-ctrl">
+        <input class="s-inp" type="number" id="s-ollama-timeout" value="${s.ollama_timeout||120}" min="10" max="600" style="width:100px">
+      </div>
+    </div>
+  </div>
+
+  <!-- Save button -->
+  <div style="display:flex;gap:12px;align-items:center">
+    <button class="run-all-btn" id="s-save-btn" onclick="saveSettings()">💾 Save Settings</button>
+    <span id="s-save-msg" style="font-size:13px;color:var(--muted)"></span>
+  </div>`;
+
+  // Restore selected model
+  const modelSel = document.getElementById('s-claude-model');
+  if (modelSel) {
+    [...modelSel.options].forEach(o => { o.selected = o.value === s.claude_model; });
+    if (![...modelSel.options].some(o => o.selected)) {
+      const opt = document.createElement('option');
+      opt.value = s.claude_model; opt.textContent = s.claude_model; opt.selected = true;
+      modelSel.prepend(opt);
+    }
+  }
+}
+
+function setBackend(backend) {
+  const isOllama = backend === 'ollama';
+  document.getElementById('tb-claude').classList.toggle('on', !isOllama);
+  document.getElementById('tb-ollama').classList.toggle('on', isOllama);
+  document.getElementById('claude-panel').classList.toggle('hidden', isOllama);
+  document.getElementById('ollama-panel').classList.toggle('hidden', !isOllama);
+  const ind = document.getElementById('backend-indicator');
+  ind.className = 'backend-indicator ' + (isOllama ? 'bi-ollama' : 'bi-claude');
+  ind.textContent = isOllama ? '🟢 Ollama (local)' : '🔵 Claude API';
+}
+
+async function probeOllama() {
+  const url = document.getElementById('s-ollama-url').value.trim();
+  const box = document.getElementById('probe-result');
+  box.style.display = 'block';
+  box.className = 'probe-box';
+  box.textContent = '⏳ Testing connection…';
+  const data = await fetch(`${API}/settings/ollama-models?base_url=${encodeURIComponent(url)}`).then(r => r.json());
+  if (data.ok) {
+    box.className = 'probe-box probe-ok';
+    box.textContent = `✓ Connected — ${data.models.length} model(s) found: ${data.models.join(', ') || 'none'}`;
+  } else {
+    box.className = 'probe-box probe-err';
+    box.textContent = `✗ Connection failed: ${data.error}`;
+  }
+}
+
+async function fetchOllamaModels() {
+  const url = document.getElementById('s-ollama-url').value.trim();
+  const sel = document.getElementById('s-ollama-model');
+  const current = sel.value;
+  sel.innerHTML = '<option>⏳ Loading…</option>';
+  const data = await fetch(`${API}/settings/ollama-models?base_url=${encodeURIComponent(url)}`).then(r => r.json());
+  if (data.ok && data.models.length) {
+    sel.innerHTML = data.models.map(m =>
+      `<option value="${m}" ${m === current ? 'selected' : ''}>${m}</option>`
+    ).join('');
+    toast(`Loaded ${data.models.length} Ollama models`);
+  } else {
+    sel.innerHTML = `<option value="${current}">${current}</option>`;
+    toast(data.error || 'No models found', true);
+  }
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('s-save-btn');
+  const msg = document.getElementById('s-save-msg');
+  const backend = document.getElementById('tb-ollama').classList.contains('on') ? 'ollama' : 'claude';
+  btn.textContent = '⏳ Saving…'; btn.disabled = true;
+  try {
+    const body = {
+      ai_backend:      backend,
+      claude_api_key:  document.getElementById('s-claude-key')?.value || '',
+      claude_model:    document.getElementById('s-claude-model')?.value || 'claude-sonnet-4-20250514',
+      ollama_base_url: document.getElementById('s-ollama-url')?.value || 'http://localhost:11434',
+      ollama_model:    document.getElementById('s-ollama-model')?.value || 'llama3',
+      ollama_timeout:  document.getElementById('s-ollama-timeout')?.value || '120',
+    };
+    const res = await fetch(`${API}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast('Settings saved ✓');
+      msg.textContent = `✓ Saved — now using ${backend === 'ollama' ? 'Ollama' : 'Claude API'}`;
+      msg.style.color = 'var(--green)';
+    } else {
+      toast('Save failed', true);
+      msg.textContent = '✗ Save failed'; msg.style.color = 'var(--red)';
+    }
+  } catch(e) {
+    toast('Network error', true);
+    msg.textContent = '✗ ' + e.message; msg.style.color = 'var(--red)';
+  }
+  btn.textContent = '💾 Save Settings'; btn.disabled = false;
 }
 </script>
 </body>

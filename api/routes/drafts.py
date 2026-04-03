@@ -58,3 +58,26 @@ async def review(
         return {"error": f"action must be one of {valid}"}
     await review_draft(draft_id, action, notes)
     return {"ok": True, "action": action}
+
+
+@router.post("/{draft_id}/update")
+async def update_draft_content(
+    draft_id: str,
+    title: str = Body(...),
+    content: str = Body(...),
+    draft_type: str = Body(...),
+    priority: str = Body("normal"),
+):
+    """Update title, content, type and priority of an existing draft."""
+    import aiosqlite
+    from core.database import DB_PATH
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """UPDATE drafts
+               SET title=?, content=?, draft_type=?, priority=?,
+                   reviewed_at=strftime('%Y-%m-%dT%H:%M:%S','now')
+               WHERE id=?""",
+            (title, content, draft_type, priority, draft_id)
+        )
+        await db.commit()
+    return {"ok": True, "draft_id": draft_id}
