@@ -18,6 +18,8 @@ from api.routes.mail        import router as mail_router
 from api.routes.drafts      import router as draft_router
 from api.routes.admin       import router as admin_router
 from api.routes.settings    import router as settings_router
+from api.routes.endeavors   import router as endeavors_router
+from api.routes.agents      import router as agents_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +36,11 @@ FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 async def lifespan(app: FastAPI):
     logger.info("🏛️  Central Think Tank initializing...")
     await init_db()
+    from core.endeavors_db import init_endeavors_db
+    await init_endeavors_db()
+    from core.agents_db import init_agents_db, seed_ceo_agents
+    await init_agents_db()
+    await seed_ceo_agents()
     logger.info("✓ Database ready")
     setup_scheduler()
     logger.info("✓ Scheduler started")
@@ -57,6 +64,8 @@ app.include_router(mail_router)
 app.include_router(draft_router)
 app.include_router(admin_router)
 app.include_router(settings_router)
+app.include_router(endeavors_router)
+app.include_router(agents_router)
 
 
 @app.get("/")

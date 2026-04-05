@@ -1,0 +1,169 @@
+"""core/agents_db.py — Multi-agent system tables."""
+import aiosqlite
+from core.database import DB_PATH
+
+
+async def init_agents_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+
+        # ── Agents ────────────────────────────────────────────────────────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS agents (
+                id                 TEXT PRIMARY KEY,
+                dept_id            TEXT NOT NULL,
+                name               TEXT NOT NULL,
+                role               TEXT NOT NULL DEFAULT 'analyst',
+                title              TEXT DEFAULT '',
+                is_ceo             INTEGER DEFAULT 0,
+                hierarchy_level    INTEGER DEFAULT 3,
+                parent_agent_id    TEXT,
+                status             TEXT DEFAULT 'active',
+                profile_image_url  TEXT DEFAULT '',
+                personality        TEXT DEFAULT '',
+                tone               TEXT DEFAULT '',
+                heartbeat_interval INTEGER DEFAULT 5,
+                model_override     TEXT DEFAULT '',
+                extra_models       TEXT DEFAULT '[]',
+                created_by         TEXT DEFAULT 'system',
+                created_at         TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                last_heartbeat     TEXT,
+                FOREIGN KEY (dept_id)          REFERENCES departments(id),
+                FOREIGN KEY (parent_agent_id)  REFERENCES agents(id)
+            )""")
+
+        # ── Agent MD skill/trait files ────────────────────────────────────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS agent_md_files (
+                id         TEXT PRIMARY KEY,
+                agent_id   TEXT,
+                dept_id    TEXT,
+                category   TEXT NOT NULL,
+                filename   TEXT NOT NULL,
+                content    TEXT DEFAULT '',
+                updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+            )""")
+
+        # ── Department MD files (guidelines, policy, charts, roles…) ─────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS dept_md_files (
+                id         TEXT PRIMARY KEY,
+                dept_id    TEXT NOT NULL,
+                category   TEXT NOT NULL,
+                filename   TEXT NOT NULL,
+                content    TEXT DEFAULT '',
+                updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                FOREIGN KEY (dept_id) REFERENCES departments(id)
+            )""")
+
+        # ── Founder inbox (direct escalations from CEOs) ──────────────────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS founder_mail (
+                id            TEXT PRIMARY KEY,
+                from_agent_id TEXT NOT NULL,
+                from_dept_id  TEXT NOT NULL,
+                subject       TEXT NOT NULL,
+                body          TEXT NOT NULL,
+                priority      TEXT DEFAULT 'high',
+                status        TEXT DEFAULT 'unread',
+                requires_decision INTEGER DEFAULT 0,
+                context_json  TEXT DEFAULT '{}',
+                created_at    TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                replied_at    TEXT,
+                reply_body    TEXT DEFAULT '',
+                FOREIGN KEY (from_agent_id) REFERENCES agents(id)
+            )""")
+
+        # ── Agent spawn requests (need CEO or Founder approval) ───────────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS agent_spawn_requests (
+                id                   TEXT PRIMARY KEY,
+                requesting_agent_id  TEXT NOT NULL,
+                dept_id              TEXT NOT NULL,
+                proposed_name        TEXT NOT NULL,
+                proposed_role        TEXT NOT NULL,
+                proposed_title       TEXT DEFAULT '',
+                proposed_personality TEXT DEFAULT '',
+                proposed_tone        TEXT DEFAULT '',
+                proposed_skills      TEXT DEFAULT '',
+                proposed_heartbeat   INTEGER DEFAULT 5,
+                status               TEXT DEFAULT 'pending',
+                approved_by          TEXT DEFAULT '',
+                rejection_reason     TEXT DEFAULT '',
+                created_at           TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                FOREIGN KEY (requesting_agent_id) REFERENCES agents(id)
+            )""")
+
+        # ── CEO decisions / approvals ─────────────────────────────────────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS ceo_decisions (
+                id            TEXT PRIMARY KEY,
+                ceo_agent_id  TEXT NOT NULL,
+                dept_id       TEXT NOT NULL,
+                decision_type TEXT NOT NULL,
+                target_id     TEXT NOT NULL,
+                decision      TEXT NOT NULL,
+                notes         TEXT DEFAULT '',
+                created_at    TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                FOREIGN KEY (ceo_agent_id) REFERENCES agents(id)
+            )""")
+
+        # ── Agent heartbeat log ───────────────────────────────────────────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS agent_heartbeat_log (
+                id           TEXT PRIMARY KEY,
+                agent_id     TEXT NOT NULL,
+                ran_at       TEXT NOT NULL,
+                result_type  TEXT DEFAULT 'ok',
+                summary      TEXT DEFAULT '',
+                FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+            )""")
+
+        # ── Draft endeavors submitted by agents ───────────────────────────
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS draft_endeavors (
+                id             TEXT PRIMARY KEY,
+                created_by     TEXT NOT NULL,
+                dept_id        TEXT NOT NULL,
+                name           TEXT NOT NULL,
+                description    TEXT DEFAULT '',
+                phases_json    TEXT DEFAULT '[]',
+                status         TEXT DEFAULT 'pending',
+                reviewed_by    TEXT DEFAULT '',
+                review_notes   TEXT DEFAULT '',
+                created_at     TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                FOREIGN KEY (created_by) REFERENCES agents(id),
+                FOREIGN KEY (dept_id)    REFERENCES departments(id)
+            )""")
+
+        await db.commit()
+
+
+async def seed_ceo_agents():
+    """Create default CEO agents for each department if not already present."""
+    CEO_DEFS = {
+        "HF":  ("Dr. Aria Wellstone",   "Chief Wellbeing Officer",   "Empathetic, thorough, protective. Deeply cares about agent welfare. Cautious with escalation.", "Warm, professional, concise"),
+        "FIN": ("Victor Ledge",          "Chief Financial Officer",   "Analytical, precise, risk-aware. Methodical decision-maker. Values long-term stability over short-term gains.", "Formal, data-driven, brief"),
+        "RES": ("Dr. Lyra Voss",         "Chief Research Officer",    "Curious, rigorous, evidence-based. Never asserts without data. Loves deep dives and citations.", "Academic, detailed, objective"),
+        "ING": ("Kai Solaris",           "Chief Engineering Officer",  "Systems thinker, first-principles approach. Builds for robustness. Skeptical of shortcuts.", "Technical, precise, direct"),
+        "STR": ("Commander Rex Altair",  "Chief Strategy Officer",    "Bold, visionary, adaptive. Sees 10 steps ahead. Calculates risk vs reward constantly.", "Commanding, strategic, confident"),
+    }
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        for dept_id, (name, title, personality, tone) in CEO_DEFS.items():
+            async with db.execute(
+                "SELECT id FROM agents WHERE dept_id=? AND is_ceo=1", (dept_id,)
+            ) as cur:
+                existing = await cur.fetchone()
+            if not existing:
+                import uuid
+                aid = str(uuid.uuid4())
+                await db.execute("""
+                    INSERT INTO agents
+                    (id, dept_id, name, role, title, is_ceo, hierarchy_level,
+                     status, personality, tone, heartbeat_interval, created_by)
+                    VALUES (?,?,?,?,?,1,1,'active',?,?,3,'system')
+                """, (aid, dept_id, name, "ceo", title, personality, tone))
+        await db.commit()
