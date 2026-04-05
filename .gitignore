@@ -17,3 +17,6 @@ config.local.yaml
 # OS
 .DS_Store
 Thumbs.db
+
+frontend/dist/
+frontend/node_modules/
