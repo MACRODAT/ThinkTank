@@ -9,6 +9,8 @@ import { COLORS, DEPT_IDS, DEPT_NAMES } from '../../constants'
 import Spinner from '../../components/UI/Spinner'
 import Modal from '../../components/UI/Modal'
 import MarkdownPreview from '../../components/Editor/MarkdownPreview'
+import HeartbeatMonitor from '../../components/UI/HeartbeatMonitor'
+import AgentChat from '../../components/UI/AgentChat'
 
 const ROLE_COLORS = { ceo:'#f85149', senior:'#d29922', analyst:'#3fb950', junior:'#8b949e' }
 const STATUS_COLORS = { active:'var(--green)', fired:'var(--red)', pending:'var(--orange)' }
@@ -182,6 +184,7 @@ export default function AgentsPage() {
   const [modal,    setModal]    = useState(false)
   const [firing,   setFiring]   = useState(null)
   const [fireReason,setFireReason]=useState('')
+  const [chatAgent, setChatAgent]= useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -296,6 +299,7 @@ export default function AgentsPage() {
       )}
 
       {modal && <CreateAgentModal onSave={handleCreate} onClose={()=>setModal(false)} />}
+      {chatAgent && <AgentChat agent={chatAgent} onClose={()=>setChatAgent(null)} />}
 
       {/* Fire confirmation */}
       <Modal open={!!firing} onClose={()=>setFiring(null)}>

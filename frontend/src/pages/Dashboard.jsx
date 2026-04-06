@@ -7,6 +7,7 @@ import {
 import { useApp } from '../context/AppContext'
 import { COLORS, ICONS } from '../constants'
 import Spinner from '../components/UI/Spinner'
+import HeartbeatMonitor from '../components/UI/HeartbeatMonitor'
 
 // ── Mini Calendar ─────────────────────────────────────────────────────────────
 
@@ -242,6 +243,9 @@ export default function Dashboard() {
             </div>
             <MiniCalendar events={calEvents} />
           </div>
+
+          {/* Heartbeat Monitor */}
+          <HeartbeatMonitor />
 
           {/* Today's Tasks */}
           <div className="card" style={{ padding:0 }}>

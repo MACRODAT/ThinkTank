@@ -44,6 +44,9 @@ async def lifespan(app: FastAPI):
     logger.info("✓ Database ready")
     setup_scheduler()
     logger.info("✓ Scheduler started")
+    from core.agent_scheduler import start_agent_scheduler
+    start_agent_scheduler()
+    logger.info("✓ Agent heartbeat scheduler started")
     logger.info("🟢 Think Tank online — http://localhost:8000")
     yield
     logger.info("🔴 Think Tank shutting down")

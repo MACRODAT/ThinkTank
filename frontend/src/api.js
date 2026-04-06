@@ -87,6 +87,8 @@ export const createAgent         = (body)  => req('/agents',               { met
 export const updateAgent         = (id,b)  => req(`/agents/${id}`,         { method:'PUT',    body:b })
 export const fireAgent           = (id,b)  => req(`/agents/${id}/fire`,    { method:'POST',   body:b })
 export const triggerHeartbeat    = (id)    => req(`/agents/${id}/heartbeat`,{ method:'POST' })
+export const chatWithAgent       = (id, msg)=> req(`/agents/${id}/chat`,     { method:'POST', body:{ message: msg } })
+export const getHeartbeatStatus  = ()       => req('/heartbeat/status')
 
 // Agent files
 export const getAgentFiles       = (id)    => req(`/agents/${id}/files`)
@@ -119,3 +121,7 @@ export const editDraftEndeavor   = (id,b)  => req(`/draft-endeavors/${id}`,{ met
 
 // CEO decisions
 export const getCeoDecisions     = (p={})  => { const qs=new URLSearchParams(p).toString(); return req(`/ceo-decisions${qs?'?'+qs:''}`) }
+
+// Agent chat
+export const chatWithAgent  = (id, message) => req(`/agents/${id}/chat`, { method:'POST', body:{ message } })
+export const clearAgentChat = (id)           => req(`/agents/${id}/chat`, { method:'DELETE' })
