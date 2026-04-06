@@ -7,8 +7,8 @@ import {
 import { useApp } from '../context/AppContext'
 import { COLORS, ICONS } from '../constants'
 import Spinner from '../components/UI/Spinner'
+import HeartbeatPanel from '../components/UI/HeartbeatPanel'
 import HeartbeatMonitor from '../components/UI/HeartbeatMonitor'
-
 // ── Mini Calendar ─────────────────────────────────────────────────────────────
 
 function MiniCalendar({ events = {} }) {
@@ -188,6 +188,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
+      <HeartbeatPanel />
       <div className="grid grid-3" style={{ marginBottom:24 }}>
         <div className="card stat"><div className="stat-value">{depts.length}</div><div className="stat-label">Departments</div></div>
         <div className="card stat"><div className="stat-value" style={{ color:'var(--orange)' }}>{stats.pending_count||0}</div><div className="stat-label">Pending Drafts</div></div>

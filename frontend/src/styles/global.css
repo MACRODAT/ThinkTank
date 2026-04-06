@@ -1568,12 +1568,60 @@ kbd {
 .mb-16 { margin-bottom: 16px; }
 
 
-/* Agent cards */
-.agent-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; cursor:pointer; transition:border-color .15s; }
-.agent-card:hover { border-color:var(--accent); }
-.agent-badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; text-transform:uppercase; }
-.agent-badge.ceo { background:rgba(255,215,0,.2); color:gold; border:1px solid rgba(255,215,0,.3); }
-/* Founder mail */
-.founder-mail-item { display:flex; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
-.founder-mail-item:hover { background:rgba(255,255,255,.025); }
+/* ══════════════════════════════════════════
+   HEARTBEAT PANEL
+   ══════════════════════════════════════════ */
+
+.hb-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.hb-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.hb-row:last-child { border-bottom: none; }
+.hb-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.hb-dot-active  { background: var(--green); box-shadow: 0 0 0 3px rgba(63,185,80,.25); animation: pulse 1.5s infinite; }
+.hb-dot-next    { background: var(--orange); }
+.hb-dot-idle    { background: var(--border); }
+
+/* Dept prompt editor sections */
+.prompt-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  transition: background 0.1s;
+}
+.prompt-section-header:hover { background: rgba(88,166,255,.06); }
 .founder-mail-item.unread { background:rgba(248,81,73,.04); border-left:3px solid var(--red); }

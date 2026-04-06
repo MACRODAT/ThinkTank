@@ -18,6 +18,29 @@ def _rows(rs): return [dict(r) for r in rs]
 
 
 # ══════════════════════════════════════════════════════════════
+#  HEARTBEAT STATUS — must be BEFORE /{aid} routes
+# ══════════════════════════════════════════════════════════════
+
+@router.get("/api/agents/heartbeat/status")
+async def heartbeat_status():
+    """Show agent queue: who ran last, who is next."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT a.id, a.name, a.dept_id, a.is_ceo, a.last_heartbeat,
+                   a.heartbeat_interval, a.title, a.role,
+                   (SELECT summary FROM agent_heartbeat_log
+                    WHERE agent_id=a.id ORDER BY ran_at DESC LIMIT 1) as last_summary,
+                   (SELECT result_type FROM agent_heartbeat_log
+                    WHERE agent_id=a.id ORDER BY ran_at DESC LIMIT 1) as last_result
+            FROM agents a WHERE a.status='active'
+            ORDER BY a.last_heartbeat ASC NULLS FIRST
+        """) as cur:
+            agents = _rows(await cur.fetchall())
+    return {"agents": agents, "queue_length": len(agents)}
+
+
+# ══════════════════════════════════════════════════════════════
 #  AGENTS CRUD
 # ══════════════════════════════════════════════════════════════
 
@@ -710,20 +733,3 @@ async def record_ceo_decision(
 async def trigger_heartbeat(aid: str):
     from core.agent_runner import run_agent_heartbeat
     return await run_agent_heartbeat(aid)
-
-
-@router.get("/api/agents/heartbeat/status")
-async def heartbeat_status():
-    """Show which agent is currently running and the queue."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("""
-            SELECT a.id, a.name, a.dept_id, a.is_ceo, a.last_heartbeat,
-                   a.heartbeat_interval,
-                   (SELECT ran_at FROM agent_heartbeat_log
-                    WHERE agent_id=a.id ORDER BY ran_at DESC LIMIT 1) as last_ran
-            FROM agents a WHERE a.status='active'
-            ORDER BY a.last_heartbeat ASC NULLS FIRST
-        """) as cur:
-            agents = _rows(await cur.fetchall())
-    return {"agents": agents, "queue_length": len(agents)}

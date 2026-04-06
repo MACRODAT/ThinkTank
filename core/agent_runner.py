@@ -246,7 +246,7 @@ async def run_agent_heartbeat(agent_id: str) -> dict:
         context_parts.append(f"\n## Your Team ({len(subordinates)} active agents)")
         for s in subordinates:
             last = s.get("last_heartbeat", "never")[:16] if s.get("last_heartbeat") else "never"
-            context_parts.append(f"- {s['name']} ({s['title']||s['role']}) — last active: {last}")
+            context_parts.append(f"- {s['name']} ({s['title']|s['role']}) — last active: {last}")
 
     context_parts.append("""
 ## Allowed Action Types

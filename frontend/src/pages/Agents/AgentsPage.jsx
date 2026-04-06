@@ -9,8 +9,7 @@ import { COLORS, DEPT_IDS, DEPT_NAMES } from '../../constants'
 import Spinner from '../../components/UI/Spinner'
 import Modal from '../../components/UI/Modal'
 import MarkdownPreview from '../../components/Editor/MarkdownPreview'
-import HeartbeatMonitor from '../../components/UI/HeartbeatMonitor'
-import AgentChat from '../../components/UI/AgentChat'
+import HeartbeatPanel from '../../components/UI/HeartbeatPanel'
 
 const ROLE_COLORS = { ceo:'#f85149', senior:'#d29922', analyst:'#3fb950', junior:'#8b949e' }
 const STATUS_COLORS = { active:'var(--green)', fired:'var(--red)', pending:'var(--orange)' }
@@ -248,6 +247,7 @@ export default function AgentsPage() {
       </div>
 
       {/* Spawn requests banner */}
+      <HeartbeatPanel />
       {spawns.length > 0 && (
         <div style={{ background:'rgba(210,153,34,.1)', border:'1px solid rgba(210,153,34,.3)', borderRadius:8, padding:'12px 16px', marginBottom:16 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'var(--orange)', marginBottom:8 }}>
