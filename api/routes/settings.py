@@ -1,5 +1,5 @@
 """
-api/routes/settings.py — Read/write AI backend settings and probe Ollama models.
+api/routes/settings.py — AI backend settings with prepend/append global prompts.
 """
 import json
 import aiosqlite
@@ -12,14 +12,18 @@ from core.config import config
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 DEFAULTS = {
-    "ai_backend":       "claude",
-    "claude_api_key":   getattr(getattr(config, "ai", None) and config.ai.claude, "api_key", ""),
-    "claude_model":     getattr(getattr(config, "ai", None) and config.ai.claude, "model", "claude-sonnet-4-20250514"),
-    "ollama_base_url":  getattr(getattr(config, "ai", None) and config.ai.ollama, "base_url", "http://localhost:11434"),
-    "ollama_model":     getattr(getattr(config, "ai", None) and config.ai.ollama, "model", "llama3"),
-    "ollama_timeout":   "120",
-    "custom_prompt":    "",
-    "verbose_thinking": "false",
+    "ai_backend":          "claude",
+    "claude_api_key":      getattr(getattr(config, "ai", None) and config.ai.claude, "api_key", ""),
+    "claude_model":        getattr(getattr(config, "ai", None) and config.ai.claude, "model", "claude-sonnet-4-20250514"),
+    "ollama_base_url":     getattr(getattr(config, "ai", None) and config.ai.ollama, "base_url", "http://localhost:11434"),
+    "ollama_model":        getattr(getattr(config, "ai", None) and config.ai.ollama, "model", "llama3"),
+    "ollama_timeout":      "120",
+    "custom_prompt":       "",
+    "custom_prompt_prepend": "",
+    "custom_prompt_append":  "",
+    "verbose_thinking":    "false",
+    # Heartbeat: seconds between scheduler ticks (default 60s = 1 minute)
+    "heartbeat_tick_seconds": "60",
 }
 
 
@@ -66,14 +70,17 @@ async def get_settings():
 
 @router.post("")
 async def save_settings(
-    ai_backend:       str           = Body(...),
-    claude_api_key:   Optional[str] = Body(None),
-    claude_model:     str           = Body("claude-sonnet-4-20250514"),
-    ollama_base_url:  str           = Body("http://localhost:11434"),
-    ollama_model:     str           = Body("llama3"),
-    ollama_timeout:   str           = Body("120"),
-    custom_prompt:    str           = Body(""),
-    verbose_thinking: str           = Body("false"),
+    ai_backend:             str           = Body(...),
+    claude_api_key:         Optional[str] = Body(None),
+    claude_model:           str           = Body("claude-sonnet-4-20250514"),
+    ollama_base_url:        str           = Body("http://localhost:11434"),
+    ollama_model:           str           = Body("llama3"),
+    ollama_timeout:         str           = Body("120"),
+    custom_prompt:          str           = Body(""),
+    custom_prompt_prepend:  str           = Body(""),
+    custom_prompt_append:   str           = Body(""),
+    verbose_thinking:       str           = Body("false"),
+    heartbeat_tick_seconds: str           = Body("60"),
 ):
     current = await _load()
     real_key = claude_api_key
@@ -81,14 +88,17 @@ async def save_settings(
         real_key = current.get("claude_api_key", "")
 
     await _save({
-        "ai_backend":       ai_backend,
-        "claude_api_key":   real_key or current.get("claude_api_key", ""),
-        "claude_model":     claude_model,
-        "ollama_base_url":  ollama_base_url.rstrip("/"),
-        "ollama_model":     ollama_model,
-        "ollama_timeout":   ollama_timeout,
-        "custom_prompt":    custom_prompt,
-        "verbose_thinking": verbose_thinking,
+        "ai_backend":             ai_backend,
+        "claude_api_key":         real_key or current.get("claude_api_key", ""),
+        "claude_model":           claude_model,
+        "ollama_base_url":        ollama_base_url.rstrip("/"),
+        "ollama_model":           ollama_model,
+        "ollama_timeout":         ollama_timeout,
+        "custom_prompt":          custom_prompt,
+        "custom_prompt_prepend":  custom_prompt_prepend,
+        "custom_prompt_append":   custom_prompt_append,
+        "verbose_thinking":       verbose_thinking,
+        "heartbeat_tick_seconds": heartbeat_tick_seconds,
     })
 
     import core.ai_router as _r
@@ -117,6 +127,7 @@ async def claude_models():
         "claude-opus-4-5",
         "claude-sonnet-4-5",
         "claude-haiku-4-5",
+        "claude-3-7-sonnet-20250219",
         "claude-3-5-sonnet-20241022",
         "claude-3-5-haiku-20241022",
         "claude-3-opus-20240229",
@@ -125,7 +136,6 @@ async def claude_models():
 
 @router.get("/thinking-log")
 async def thinking_log(limit: int = 50):
-    """Return recent AI thinking entries from audit log."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -136,9 +146,7 @@ async def thinking_log(limit: int = 50):
     result = []
     for r in rows:
         d = dict(r)
-        try:
-            d["meta_parsed"] = json.loads(d.get("metadata", "{}"))
-        except Exception:
-            d["meta_parsed"] = {}
+        try:    d["meta_parsed"] = json.loads(d.get("metadata", "{}"))
+        except: d["meta_parsed"] = {}
         result.append(d)
     return result

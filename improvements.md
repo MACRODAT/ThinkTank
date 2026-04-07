@@ -125,3 +125,69 @@ Getting error: table agent_heartbeat_log has no column named actions_json. Examp
 
 - Agents can and have to review drafts submitted by agents submitting directly to them. T
 - Agents can send drafts submitted by agents reporting directly to them to their superiors for review, until CEO.
+
+
+
+1- Fix ERROR:    Exception in ASGI application
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 401, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 70, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\fastapi\applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\middleware\errors.py", line 187, in __call__
+    raise exc
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\middleware\errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\middleware\cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\middleware\cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\middleware\exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\_exception_handler.py", line 62, in wrapped_app
+    raise exc
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\_exception_handler.py", line 51, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\starlette\routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\fastapi\routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\OMEN\anaconda3\Lib\site-packages\fastapi\routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\ai\central-think-tank\api\routes\drafts.py", line 87, in review
+    ok = await review_draft(draft_id, action, notes, reviewed_by)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\ai\central-think-tank\core\draft_vault.py", line 149, in review_draft
+    new_content = (row["content"] if row else "") + note_block
+
+2- Fix heartbeat monitor in dashboard which does not show anything.
+3- Add tab in department showing hierarchy of all agents
+4- Make sure agents create endeavors too (they do not)
+5- In order to prevent data duplicates and for more organization:
+	- Create topics, so each topic is associated with a theme such as: "Freelancing strategy"
+	- The mail room allows filtering mail depending on topic, sender or recepient
+	- The projects can be grouped based on topic
+	- The drafts can be grouped based on topic
+	- Make sure all agents research topic before create a new topic
+	- Make sure all agents include topic in all mail, drafts, strategies...
+	- Feel free to add feature / apply ideas as you see fit

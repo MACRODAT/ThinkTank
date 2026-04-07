@@ -22,7 +22,7 @@ export const getPendingDrafts = (deptId)    => req(`/drafts/pending${deptId ? `?
 export const getDraft         = (id)        => req(`/drafts/${id}`)
 export const getDraftStats    = ()          => req('/drafts/stats')
 export const createDraft      = (body)      => req('/drafts',              { method: 'POST', body })
-export const reviewDraft      = (id, action, notes) => req(`/drafts/${id}/review`, { method: 'POST', body: { action, notes } })
+export const reviewDraft      = (id, action, notes, reviewed_by) => req(`/drafts/${id}/review`, { method: 'POST', body: { action, notes, reviewed_by: reviewed_by || 'founder' } })
 export const updateDraft      = (id, body)  => req(`/drafts/${id}/update`, { method: 'POST', body })
 
 // Mail
