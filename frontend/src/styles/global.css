@@ -1393,6 +1393,41 @@ kbd {
 .chat-md pre { background: rgba(0,0,0,0.2); font-size: 12px; padding: 8px; margin: 6px 0; }
 .chat-md code { font-size: 12px; }
 
+/* Tool call blocks inside chat */
+.chat-tool-call {
+  margin: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.chat-tool-call summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+.chat-tool-call summary::-webkit-details-marker { display: none; }
+.chat-tool-icon { color: var(--accent); }
+.chat-tool-name { font-weight: 600; color: var(--text); }
+.chat-tool-result {
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.2);
+  font-family: 'Cascadia Code','Consolas',monospace;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
 /* ══════════════════════════════════════════
    AGENT CARDS & BADGES
    ══════════════════════════════════════════ */

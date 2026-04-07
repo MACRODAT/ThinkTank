@@ -190,16 +190,69 @@ Escalate to Founder if:
 - An external threat or opportunity requires urgent Founder decision`,
 }
 
-// Structured prompt sections for the rich editor
+// Structured prompt sections — each has a clean heading used for round-trip parsing
 const PROMPT_SECTIONS = [
-  { key: 'identity',      label: '🎯 Identity & Mandate',      placeholder: 'Define the department\'s core purpose and authority...' },
-  { key: 'responsibilities', label: '📋 Core Responsibilities', placeholder: 'List the main ongoing duties...' },
-  { key: 'style',         label: '💬 Communication Style',      placeholder: 'Tone, format preferences, language rules...' },
-  { key: 'authority',     label: '⚖️ Decision Authority',       placeholder: 'What can the CEO decide alone vs. escalate...' },
-  { key: 'formats',       label: '📄 Output Formats',           placeholder: 'Templates and formats for deliverables...' },
-  { key: 'escalation',    label: '🚨 Escalation Triggers',      placeholder: 'Conditions that require Founder involvement...' },
-  { key: 'custom',        label: '✏️ Custom Instructions',      placeholder: 'Any additional context or special rules...' },
+  { key: 'identity',         label: '🎯 Identity & Mandate',      heading: 'Identity & Mandate',      placeholder: "Define the department's core purpose and authority..." },
+  { key: 'responsibilities', label: '📋 Core Responsibilities',   heading: 'Core Responsibilities',   placeholder: 'List the main ongoing duties...' },
+  { key: 'style',            label: '💬 Communication Style',     heading: 'Communication Style',     placeholder: 'Tone, format preferences, language rules...' },
+  { key: 'authority',        label: '⚖️ Decision Authority',      heading: 'Decision Authority',      placeholder: 'What can the CEO decide alone vs. escalate...' },
+  { key: 'formats',          label: '📄 Output Formats',          heading: 'Output Formats',          placeholder: 'Templates and formats for deliverables...' },
+  { key: 'escalation',       label: '🚨 Escalation Triggers',     heading: 'Escalation Triggers',     placeholder: 'Conditions that require Founder involvement...' },
+  { key: 'custom',           label: '✏️ Custom Instructions',     heading: 'Custom Instructions',     placeholder: 'Any additional context or special rules...' },
 ]
+
+/**
+ * Parse a raw markdown prompt into the structured sections map.
+ * Strategy:
+ *  1. Split on any `## ` heading line
+ *  2. Map each section title to a key via fuzzy keyword matching
+ *  3. Fall back to prefilling from the template if a section is empty
+ */
+function parsePromptSections(raw, deptId) {
+  const result = {}
+  PROMPT_SECTIONS.forEach(s => { result[s.key] = '' })
+
+  if (!raw || !raw.trim()) {
+    // No saved prompt — prefill from template
+    const tmpl = DEPT_PROMPT_TEMPLATES[deptId] || ''
+    return tmpl ? parsePromptSections(tmpl, null) : result
+  }
+
+  // Split into blocks at every '\n## ' or start-of-string '## '
+  const sectionRegex = /(?:^|\n)(## .+)/g
+  const headings = []
+  let m
+  while ((m = sectionRegex.exec(raw)) !== null) {
+    headings.push({ title: m[1].replace(/^## /, '').trim(), index: m.index + (raw[m.index] === '\n' ? 1 : 0) })
+  }
+
+  headings.forEach((h, i) => {
+    const start   = raw.indexOf('\n', h.index) + 1   // after the heading line
+    const end     = i + 1 < headings.length ? headings[i + 1].index : raw.length
+    const content = raw.slice(start, end).trim()
+    const title   = h.title.toLowerCase()
+
+    let key = null
+    if      (/identity|mandate/i.test(title))              key = 'identity'
+    else if (/responsib/i.test(title))                     key = 'responsibilities'
+    else if (/communication|comm.style|style/i.test(title))key = 'style'
+    else if (/authority|decision/i.test(title))            key = 'authority'
+    else if (/format|output/i.test(title))                 key = 'formats'
+    else if (/escalation|trigger/i.test(title))            key = 'escalation'
+    else if (/custom|additional|instruction/i.test(title)) key = 'custom'
+
+    if (key) result[key] = content
+  })
+
+  // If ALL sections are still empty (headings didn't match), prefill from template
+  const allEmpty = Object.values(result).every(v => !v.trim())
+  if (allEmpty && deptId) {
+    const tmpl = DEPT_PROMPT_TEMPLATES[deptId] || ''
+    if (tmpl) return parsePromptSections(tmpl, null)
+  }
+
+  return result
+}
 
 function PromptSection({ label, value, onChange, placeholder }) {
   const [open, setOpen] = useState(true)
@@ -265,18 +318,10 @@ export default function Department() {
 
   const openPrompt = async () => {
     const d = await getDeptPrompt(id)
-    const raw = d.system_prompt || DEPT_PROMPT_TEMPLATES[id] || ''
-    setPromptTxt(raw)
+    const raw = d.system_prompt || ''
+    setPromptTxt(raw || DEPT_PROMPT_TEMPLATES[id] || '')
     setSchedule(d.schedule || '')
-
-    // Parse sections from raw prompt for structured view
-    const parsed = {}
-    PROMPT_SECTIONS.forEach(s => {
-      const regex = new RegExp(`## [^\\n]*${s.label.replace(/[^a-zA-Z\s]/g,'').trim().split(' ').slice(-2).join('[^\\n]*')}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`, 'i')
-      const match = raw.match(regex)
-      parsed[s.key] = match ? match[1].trim() : ''
-    })
-    setSections(parsed)
+    setSections(parsePromptSections(raw, id))
     setPromptOpen(true)
   }
 
@@ -284,14 +329,15 @@ export default function Department() {
     setSavingP(true)
     let finalPrompt = promptTxt
     if (promptMode === 'structured') {
-      // Rebuild raw prompt from sections
-      const lines = [`# ${dept?.name || id} Department — System Prompt\n`]
+      // Rebuild raw prompt using the canonical heading names (for clean round-trip)
+      const lines = [`# ${dept?.name || id} Department\n`]
       PROMPT_SECTIONS.forEach(s => {
         if (sections[s.key]?.trim()) {
-          lines.push(`## ${s.label.replace(/^[^\w]+/, '')}\n${sections[s.key].trim()}\n`)
+          lines.push(`## ${s.heading}\n${sections[s.key].trim()}\n`)
         }
       })
       finalPrompt = lines.join('\n')
+      setPromptTxt(finalPrompt) // keep raw in sync
     }
     try {
       await saveDeptPrompt(id, { system_prompt: finalPrompt, schedule: schedule || null })
@@ -304,6 +350,7 @@ export default function Department() {
   const loadTemplate = () => {
     const template = DEPT_PROMPT_TEMPLATES[id] || ''
     setPromptTxt(template)
+    setSections(parsePromptSections(template, null)) // populate structured fields too
     toast('Template loaded — edit and save to apply')
   }
 

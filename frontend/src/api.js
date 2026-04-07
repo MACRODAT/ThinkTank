@@ -123,6 +123,7 @@ export const editDraftEndeavor   = (id,b)  => req(`/draft-endeavors/${id}`,{ met
 export const getCeoDecisions     = (p={})  => { const qs=new URLSearchParams(p).toString(); return req(`/ceo-decisions${qs?'?'+qs:''}`) }
 
 // Agent chat
-export const chatWithAgent  = (id, message) => req(`/agents/${id}/chat`, { method:'POST', body:{ message } })
-export const clearAgentChat = (id)           => req(`/agents/${id}/chat`, { method:'DELETE' })
-export const getHeartbeatStatus = ()          => req('/agents/heartbeat/status')
+export const chatWithAgent          = (id, message) => req(`/agents/${id}/chat`, { method:'POST', body:{ message } })
+export const clearAgentChat         = (id)           => req(`/agents/${id}/chat`, { method:'DELETE' })
+export const getHeartbeatStatus     = ()             => req('/agents/heartbeat/status')
+export const updateHeartbeatInterval= (id, interval) => req(`/agents/${id}/heartbeat-interval`, { method:'PUT', body:{ interval } })

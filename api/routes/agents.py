@@ -246,7 +246,11 @@ async def chat_with_agent(
         system_prompt=system_prompt,
         messages=messages,
     )
-    reply = result.get("text", "…")
+    raw_reply = result.get("text", "…")
+
+    # Process tool calls embedded in reply
+    from core.agent_runner import process_chat_with_tools
+    reply, tool_log = await process_chat_with_tools(agent, raw_reply)
 
     # Persist both turns
     async with aiosqlite.connect(DB_PATH) as db:
@@ -258,7 +262,7 @@ async def chat_with_agent(
             """, (cid, aid, role, content))
         await db.commit()
 
-    return {"reply": reply, "agent_name": agent["name"]}
+    return {"reply": reply, "agent_name": agent["name"], "tool_calls": tool_log}
 
 
 @router.delete("/api/agents/{aid}/chat")
@@ -733,3 +737,17 @@ async def record_ceo_decision(
 async def trigger_heartbeat(aid: str):
     from core.agent_runner import run_agent_heartbeat
     return await run_agent_heartbeat(aid)
+
+
+@router.put("/api/agents/{aid}/heartbeat-interval")
+async def update_heartbeat_interval(
+    aid: str,
+    interval: int = Body(..., embed=True),
+):
+    """Update how often (in scheduler cycles) this agent runs."""
+    if interval < 1 or interval > 1440:
+        return {"error": "Interval must be between 1 and 1440"}
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE agents SET heartbeat_interval=? WHERE id=?", (interval, aid))
+        await db.commit()
+    return {"ok": True, "interval": interval}

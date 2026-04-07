@@ -58,5 +58,8 @@ async def get_department(dept_id: str):
 @router.post("/{dept_id}/run")
 async def trigger_cycle(dept_id: str):
     from core.orchestrator import run_department
+    from core.agent_runner import run_department_cycle
     asyncio.create_task(run_department(dept_id.upper()))
+    # Invoke CEO first, then all L2 agents in the department
+    asyncio.create_task(run_department_cycle(dept_id.upper()))
     return {"status": "started", "dept_id": dept_id.upper()}

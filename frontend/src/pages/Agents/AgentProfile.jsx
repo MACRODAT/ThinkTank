@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   getAgent, updateAgent, fireAgent, triggerHeartbeat,
   getAgentFiles, upsertAgentFile, deleteAgentFile,
-  requestSpawn,
+  requestSpawn, updateHeartbeatInterval,
 } from '../../api'
 import { useApp } from '../../context/AppContext'
 import { COLORS } from '../../constants'
@@ -13,6 +13,96 @@ import MarkdownPreview from '../../components/Editor/MarkdownPreview'
 import AgentChat from './AgentChat'
 
 const FILE_CATEGORIES = ['skills','personality','traits','tone','guidelines','prompts','knowledge']
+
+// ── Heartbeat Scheduler ────────────────────────────────────────────────────────────────────
+
+const INTERVAL_PRESETS = [
+  { label: 'Every cycle (1)',    value: 1 },
+  { label: 'Every 3 cycles',    value: 3 },
+  { label: 'Every 5 cycles',    value: 5 },
+  { label: 'Every 10 cycles',   value: 10 },
+  { label: 'Every 30 cycles',   value: 30 },
+  { label: 'Every 60 cycles',   value: 60 },
+  { label: 'Hourly (120)',      value: 120 },
+  { label: 'Twice daily (480)', value: 480 },
+  { label: 'Daily (960)',       value: 960 },
+  { label: 'Paused (never)',    value: 9999 },
+]
+
+function HeartbeatScheduler({ agent, onUpdated }) {
+  const { toast } = useApp()
+  const [interval, setIntervalVal] = useState(agent.heartbeat_interval || 5)
+  const [saving,   setSaving]      = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    await updateHeartbeatInterval(agent.id, interval)
+    toast(`Heartbeat set to every ${interval} cycles ✓`)
+    setSaving(false)
+    onUpdated?.()
+  }
+
+  const nextBeat = () => {
+    if (!agent.last_heartbeat || interval >= 9999) return 'Paused'
+    const last = new Date(agent.last_heartbeat)
+    const nextMs = last.getTime() + interval * 60 * 1000
+    const diff   = Math.round((nextMs - Date.now()) / 60000)
+    if (diff <= 0) return 'Overdue'
+    return `in ~${diff}m`
+  }
+
+  const isPaused = interval >= 9999
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <span className="card-title">❤ Heartbeat Schedule</span>
+        <span style={{ fontSize: 12, color: isPaused ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>
+          {isPaused ? '⏸ Paused' : `Next: ${nextBeat()}`}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+        {/* Preset buttons */}
+        {INTERVAL_PRESETS.map(p => (
+          <button key={p.value}
+            className={`btn btn-sm ${interval === p.value ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setIntervalVal(p.value)}
+            title={`Run every ${p.value} scheduler cycles`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ flex: 1 }}>
+          <label className="form-label">Custom interval (cycles)</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+            <input type="range" min={1} max={1440} value={Math.min(interval, 1440)}
+              onChange={e => setIntervalVal(Number(e.target.value))}
+              style={{ flex: 1, accentColor: 'var(--accent)' }} />
+            <input type="number" className="form-control" min={1} max={9999}
+              value={interval} onChange={e => setIntervalVal(Number(e.target.value))}
+              style={{ width: 80 }} />
+            <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>cycles</span>
+          </div>
+        </div>
+        <button className="btn btn-success" onClick={save} disabled={saving} style={{ alignSelf: 'flex-end' }}>
+          {saving ? <Spinner /> : '💾 Save'}
+        </button>
+      </div>
+
+      {agent.last_heartbeat && (
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>
+          Last run: {agent.last_heartbeat.substring(0, 16).replace('T', ' ')} UTC
+          {agent.recent_heartbeats?.[0]?.summary && (
+            <span style={{ marginLeft: 8 }}>— {agent.recent_heartbeats[0].summary.substring(0, 80)}</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 /* ── Preset model templates (importable) ──────────────────── */
 const PRESET_PERSONALITIES = [
@@ -331,34 +421,38 @@ export default function AgentProfile() {
 
       {/* PROFILE TAB */}
       {tab === 'profile' && (
-        <div className="grid grid-2">
-          <div className="card">
-            <div className="card-header"><span className="card-title">Personality & Tone</span></div>
-            <div style={{ marginBottom:12 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>Personality</div>
-              <p style={{ fontSize:13, lineHeight:1.7 }}>{agent.personality || '—'}</p>
-            </div>
-            <div>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>Tone</div>
-              <p style={{ fontSize:13, lineHeight:1.7 }}>{agent.tone || '—'}</p>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-header"><span className="card-title">Technical Config</span></div>
-            {[
-              ['Heartbeat',     `Every ${agent.heartbeat_interval} cycles`],
-              ['Model',         agent.model_override || 'Uses global setting'],
-              ['Extra Models',  agent.extra_models === '[]' || !agent.extra_models ? 'None' : agent.extra_models],
-              ['Last Heartbeat',agent.last_heartbeat ? agent.last_heartbeat.substring(0,16).replace('T',' ') : 'Never'],
-              ['Created By',    agent.created_by],
-              ['Created',       agent.created_at?.substring(0,10)],
-            ].map(([l,v])=>(
-              <div key={l} style={{ display:'flex', gap:10, padding:'7px 0', borderBottom:'1px solid var(--border)', fontSize:13 }}>
-                <span style={{ color:'var(--muted)', width:130, flexShrink:0 }}>{l}</span>
-                <span>{v}</span>
+        <div>
+          <div className="grid grid-2" style={{ marginBottom: 16 }}>
+            <div className="card">
+              <div className="card-header"><span className="card-title">Personality & Tone</span></div>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>Personality</div>
+                <p style={{ fontSize:13, lineHeight:1.7 }}>{agent.personality || '—'}</p>
               </div>
-            ))}
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>Tone</div>
+                <p style={{ fontSize:13, lineHeight:1.7 }}>{agent.tone || '—'}</p>
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-header"><span className="card-title">Technical Config</span></div>
+              {[
+                ['Model',         agent.model_override || 'Uses global setting'],
+                ['Extra Models',  agent.extra_models === '[]' || !agent.extra_models ? 'None' : agent.extra_models],
+                ['Last Heartbeat',agent.last_heartbeat ? agent.last_heartbeat.substring(0,16).replace('T',' ') : 'Never'],
+                ['Created By',    agent.created_by],
+                ['Created',       agent.created_at?.substring(0,10)],
+              ].map(([l,v])=>(
+                <div key={l} style={{ display:'flex', gap:10, padding:'7px 0', borderBottom:'1px solid var(--border)', fontSize:13 }}>
+                  <span style={{ color:'var(--muted)', width:130, flexShrink:0 }}>{l}</span>
+                  <span>{v}</span>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* ── Heartbeat Scheduler ── */}
+          <HeartbeatScheduler agent={agent} onUpdated={load} />
         </div>
       )}
 

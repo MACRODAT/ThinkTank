@@ -6,7 +6,7 @@ import { updateDraft, reviewDraft } from '../../api'
 import { useApp } from '../../context/AppContext'
 import { DRAFT_TYPES, PRIORITIES } from '../../constants'
 
-// Panel display modes
+// Panel display updateDraft
 const MODE = { SPLIT: 'split', FULL: 'full', PREVIEW: 'preview', MINI: 'mini' }
 
 export default function FullScreenEditor({ draft, onClose, onSaved }) {

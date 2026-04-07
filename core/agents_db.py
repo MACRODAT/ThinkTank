@@ -141,6 +141,18 @@ async def init_agents_db():
                 FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
             )""")
 
+        # ── Live migrations (add columns to existing tables safely) ──────
+        migrations = [
+            ("agent_heartbeat_log", "actions_json",  "ALTER TABLE agent_heartbeat_log ADD COLUMN actions_json TEXT DEFAULT '[]'"),
+            ("agents",             "extra_models",   "ALTER TABLE agents ADD COLUMN extra_models TEXT DEFAULT '[]'"),
+            ("agents",             "profile_image_url", "ALTER TABLE agents ADD COLUMN profile_image_url TEXT DEFAULT ''"),
+        ]
+        for table, column, sql in migrations:
+            try:
+                await db.execute(sql)
+            except Exception:
+                pass  # Column already exists — safe to ignore
+
         await db.commit()
 
 
