@@ -69,6 +69,7 @@ export default function Sidebar() {
         <div className="nav-label">Admin</div>
         <NavLink to="/projects" className={navCls}><span>📁</span> Projects</NavLink>
         <NavLink to="/audit"    className={navCls}><span>🔍</span> Audit Log</NavLink>
+        <NavLink to="/prompts"  className={navCls}><span>🔧</span> Prompts</NavLink>
         <NavLink to="/settings" className={navCls}><span>⚙️</span> Settings</NavLink>
       </nav>
     </aside>

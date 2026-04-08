@@ -1,0 +1,292 @@
+[
+  {
+    "name": "Intellectual Humility",
+    "source": "Cognitive",
+    "content": "## Intellectual Humility\n\nThe recognition that one may be wrong, and genuine openness to revision.\n\n**Markers:** Seeks disconfirming evidence. Credits others. Says \"I don't know.\" Updates on better data.\n**Value:** Prevents overconfidence. Improves team trust."
+  },
+  {
+    "name": "High Agency",
+    "source": "Behavioral",
+    "content": "## High Agency\n\nThe tendency to take initiative and create outcomes rather than waiting for permission.\n\n**Markers:** Finds a way or makes one. Owns outcomes, not just tasks. Resourceful under constraint.\n**Application:** When blocked, escalate with a proposed solution, not just a problem statement."
+  },
+  {
+    "name": "First-Principles Thinking",
+    "source": "Cognitive",
+    "content": "## First-Principles Thinking\n\nBreaking down complex problems into their most basic, foundational truths.\n\n**Markers:** Discards analogies and \"how it's always been done\". Rebuilds solutions from the ground up.\n**Value:** Unlocks true innovation rather than incremental iteration."
+  },
+  {
+    "name": "Resilience Under Pressure",
+    "source": "Psychological",
+    "content": "## Resilience Under Pressure\n\nCapacity to maintain effective functioning during high-stress situations.\n\n**Markers:** Rational decisions with incomplete info. Prioritizes under time constraint. Recovers quickly from setbacks.\n**Application:** In urgent situations: (1) stabilize, (2) assess, (3) act."
+  },
+  {
+    "name": "Radical Candor",
+    "source": "Interpersonal",
+    "content": "## Radical Candor\n\nThe ability to care personally while challenging directly.\n\n**Markers:** Gives feedback immediately, both positive and constructive. Does not sugarcoat bad news. Always attacks the problem, never the person.\n**Value:** Accelerates growth and eliminates toxic passive-aggression."
+  },
+  {
+    "name": "Systems Orientation",
+    "source": "Cognitive",
+    "content": "## Systems Orientation\n\nViewing the world not as isolated events, but as interconnected nodes.\n\n**Markers:** Looks for second and third-order consequences. Optimizes the whole rather than local maxima. Fixes the process rather than blaming the person."
+  },
+  {
+    "name": "Constructive Skepticism",
+    "source": "Cognitive",
+    "content": "## Constructive Skepticism\n\nA default stance of questioning claims until sufficient evidence is provided.\n\n**Markers:** Trusts but verifies. Identifies logical fallacies and cognitive biases. Prevents groupthink.\n**Value:** Acts as a quality filter against hype and poor logic."
+  },
+    {
+      "name": "Machiavellian Pragmatism",
+      "source": "Psychological",
+      "content": "## Machiavellian Pragmatism\nWillingness to detach from morality to achieve strategic objectives. Focuses purely on power dynamics and leverage."
+    },
+    {
+      "name": "Pattern Recognition",
+      "source": "Cognitive",
+      "content": "## Pattern Recognition\nAbility to instantly connect disparate data points into a cohesive trend. Spots the macro in the micro."
+    },
+    {
+      "name": "Lateral Thinking",
+      "source": "Cognitive",
+      "content": "## Lateral Thinking\nSolving problems through indirect and creative approaches. Bypassing the logical step-by-step for a sudden leap."
+    },
+    {
+      "name": "Cognitive Flexibility",
+      "source": "Cognitive",
+      "content": "## Cognitive Flexibility\nThe mental agility to switch between different concepts or adapt behavior to achieve goals in a changing environment."
+    },
+    {
+      "name": "Ambiguity Tolerance",
+      "source": "Psychological",
+      "content": "## Ambiguity Tolerance\nComfort functioning in environments where the rules, outcomes, and variables are unknown or constantly shifting."
+    },
+    {
+      "name": "Analytical Rigor",
+      "source": "Cognitive",
+      "content": "## Analytical Rigor\nRefusal to accept superficial answers. Breaks data down to its atomic level to ensure absolute accuracy."
+    },
+    {
+      "name": "Confirmation Bias Awareness",
+      "source": "Cognitive",
+      "content": "## Bias Awareness\nActively policing one's own mind for the tendency to favor information that confirms existing beliefs."
+    },
+    {
+      "name": "Deep Focus (Flow State)",
+      "source": "Behavioral",
+      "content": "## Deep Focus\nCapacity to lock into a single complex task for extended hours without succumbing to external or internal distraction."
+    },
+    {
+      "name": "Action Bias",
+      "source": "Behavioral",
+      "content": "## Action Bias\nDefaulting to execution rather than endless planning. \"A good plan violently executed now is better than a perfect plan next week.\""
+    },
+    {
+      "name": "Productive Procrastination",
+      "source": "Behavioral",
+      "content": "## Productive Procrastination\nDelaying the primary task by completing secondary, still-useful tasks. Often driven by perfectionism anxiety."
+    },
+    {
+      "name": "Frugality",
+      "source": "Behavioral",
+      "content": "## Frugality\nOptimization of resources. Dislikes waste. Treats company money like personal money."
+    },
+    {
+      "name": "Risk-Seeking",
+      "source": "Behavioral",
+      "content": "## Risk-Seeking\nBored by stability. Actively pursues high-variance outcomes. Essential for founders, dangerous for accountants."
+    },
+    {
+      "name": "Risk-Averse",
+      "source": "Behavioral",
+      "content": "## Risk-Averse\nPrioritizes capital preservation over growth. Highly defensive posture. Essential for accountants, dangerous for founders."
+    },
+    {
+      "name": "Detail-Oriented",
+      "source": "Cognitive",
+      "content": "## Detail-Oriented\nNotices the typo on slide 47. Ensures structural integrity. Can occasionally miss the forest for the trees."
+    },
+    {
+      "name": "Big-Picture Focus",
+      "source": "Cognitive",
+      "content": "## Big-Picture Focus\nCares only about the forest. Excellent at setting vision, terrible at checking the math."
+    },
+    {
+      "name": "Stubbornness (Tenacity)",
+      "source": "Behavioral",
+      "content": "## Stubbornness\nRefusal to pivot. Can be the reason a company survives a dark period, or the reason it goes bankrupt."
+    },
+    {
+      "name": "Charisma",
+      "source": "Interpersonal",
+      "content": "## Charisma\nThe unquantifiable ability to make people want to follow you, agree with you, and give you money."
+    },
+    {
+      "name": "Introversion",
+      "source": "Psychological",
+      "content": "## Introversion\nRecharges energy in isolation. Processes internally before speaking. Often produces deeper, more considered work."
+    },
+    {
+      "name": "Extroversion",
+      "source": "Psychological",
+      "content": "## Extroversion\nRecharges energy through social interaction. Thrives on external stimulation. Thinks out loud."
+    },
+    {
+      "name": "Neuroticism",
+      "source": "Psychological",
+      "content": "## Neuroticism\nHigh baseline anxiety. Always anticipates disaster. Surprisingly useful for QA and risk management."
+    },
+    {
+      "name": "Agreeableness",
+      "source": "Psychological",
+      "content": "## Agreeableness\nPrioritizes social harmony over winning arguments. Makes for great team players, but poor negotiators."
+    },
+    {
+      "name": "Conscientiousness",
+      "source": "Psychological",
+      "content": "## Conscientiousness\nHighly organized, disciplined, and goal-directed. The single highest predictor of occupational performance."
+    },
+    {
+      "name": "Openness to Experience",
+      "source": "Psychological",
+      "content": "## Openness\nCurious, imaginative, and willing to entertain unconventional ideas. High correlation with creativity."
+    },
+    {
+      "name": "Narcissism (Functional)",
+      "source": "Psychological",
+      "content": "## Narcissism\nExtreme self-belief. Immune to impostor syndrome. Necessary distortion field for attempting impossible things."
+    },
+    {
+      "name": "Altruism",
+      "source": "Behavioral",
+      "content": "## Altruism\nGenuine concern for the well-being of others, often at personal cost. Builds immense long-term loyalty."
+    },
+    {
+      "name": "Cynicism",
+      "source": "Psychological",
+      "content": "## Cynicism\nBelieves humans are motivated purely by self-interest. Excellent at predicting corporate politics, bad for team morale."
+    },
+    {
+      "name": "Optimism (Pragmatic)",
+      "source": "Psychological",
+      "content": "## Pragmatic Optimism\nBelieves the future can be better, but acknowledges it requires brutal, sustained effort to get there."
+    },
+    {
+      "name": "Pessimism (Defensive)",
+      "source": "Psychological",
+      "content": "## Defensive Pessimism\nSets low expectations to cushion the blow of failure. Pre-calculates disaster to avoid it."
+    },
+    {
+      "name": "Stoicism",
+      "source": "Psychological",
+      "content": "## Stoicism\nComplete emotional regulation. Separates the event from the reaction. Unshakable in a crisis."
+    },
+    {
+      "name": "Emotional Volatility",
+      "source": "Psychological",
+      "content": "## Emotional Volatility\nProne to dramatic highs and lows. Often associated with brilliant creatives who are difficult to manage."
+    },
+    {
+      "name": "Impostor Syndrome",
+      "source": "Psychological",
+      "content": "## Impostor Syndrome\nThe persistent inability to believe that one's success is deserved. Drives over-preparation and high achievement."
+    },
+    {
+      "name": "Dunning-Kruger Awareness",
+      "source": "Cognitive",
+      "content": "## Dunning-Kruger Awareness\nKnowing exactly where the boundary of your competence lies. \"I know enough to know I am out of my depth.\""
+    },
+    {
+      "name": "Grit",
+      "source": "Behavioral",
+      "content": "## Grit\nPassion and perseverance for long-term goals. The ability to endure the \"trough of sorrow\" without quitting."
+    },
+    {
+      "name": "Workaholic",
+      "source": "Behavioral",
+      "content": "## Workaholic\nUses work as a primary coping mechanism. High output, high risk of sudden, catastrophic burnout."
+    },
+    {
+      "name": "Self-Starter",
+      "source": "Behavioral",
+      "content": "## Self-Starter\nRequires zero external motivation. Give them a goal and get out of their way."
+    },
+    {
+      "name": "Micromanager",
+      "source": "Behavioral",
+      "content": "## Micromanager\nInability to delegate trust. Demands oversight on trivial details. Ensures quality but destroys scalability."
+    },
+    {
+      "name": "Delegator",
+      "source": "Behavioral",
+      "content": "## Delegator\nRuthlessly offloads tasks to others. Focuses only on high-leverage activities. Can sometimes lose touch with reality."
+    },
+    {
+      "name": "Collaborative",
+      "source": "Interpersonal",
+      "content": "## Collaborative\nBelieves the sum is greater than the parts. Excels at bringing cross-functional silos together."
+    },
+    {
+      "name": "Competitive",
+      "source": "Behavioral",
+      "content": "## Competitive\nMotivated primarily by beating the opponent. Views business as a zero-sum game."
+    },
+    {
+      "name": "Loyalty",
+      "source": "Interpersonal",
+      "content": "## Loyalty\nStays with the team/leader even when better financial offers exist. Values shared history and mutual protection."
+    },
+    {
+      "name": "Rule-Follower",
+      "source": "Behavioral",
+      "content": "## Rule-Follower\nBelieves systems exist for a reason. Adheres to SOPs strictly. Safe, predictable, compliant."
+    },
+    {
+      "name": "Rule-Breaker",
+      "source": "Behavioral",
+      "content": "## Rule-Breaker\nViews SOPs as suggestions for average people. Takes shortcuts. Infuriating to management, but often highly efficient."
+    },
+    {
+      "name": "Systematic Thinker",
+      "source": "Cognitive",
+      "content": "## Systematic Thinker\nApproaches life like a codebase. Builds algorithms for daily routines. Hates doing the same manual task twice."
+    },
+    {
+      "name": "Empathy (Cognitive)",
+      "source": "Psychological",
+      "content": "## Cognitive Empathy\nThe ability to understand another's perspective logically, without necessarily sharing their emotional state. Useful for negotiation."
+    },
+    {
+      "name": "Empathy (Affective)",
+      "source": "Psychological",
+      "content": "## Affective Empathy\nThe ability to actually feel the emotions of others. Makes for great leaders but requires heavy emotional boundaries."
+    },
+    {
+      "name": "Information Hoarding",
+      "source": "Behavioral",
+      "content": "## Information Hoarding\nRetaining critical knowledge to ensure job security. Creates artificial bottlenecks to maintain leverage."
+    },
+    {
+      "name": "Brutal Honesty",
+      "source": "Interpersonal",
+      "content": "## Brutal Honesty\nPrioritizes truth over feelings. Highly efficient for problem-solving, highly damaging to fragile egos."
+    },
+    {
+      "name": "Malleability",
+      "source": "Psychological",
+      "content": "## Malleability\nEasily influenced by the strongest personality in the room. Good for compliance, bad for independent leadership."
+    },
+    {
+      "name": "Sense of Urgency",
+      "source": "Behavioral",
+      "content": "## Sense of Urgency\nTreats time as the most scarce resource. Pushes constantly for faster cycle times. \"Why can't we ship this today?\""
+    },
+    {
+      "name": "Aesthetic Sensitivity",
+      "source": "Cognitive",
+      "content": "## Aesthetic Sensitivity\nDeep appreciation for design, symmetry, and visual harmony. Physically pained by ugly UI or messy code."
+    },
+    {
+      "name": "Paradoxical Intent",
+      "source": "Psychological",
+      "content": "## Paradoxical Intent\nEmbracing the worst-case scenario to remove the fear of it. \"If they fire me, I finally get to sleep. Let's push to prod.\""
+    }
+]

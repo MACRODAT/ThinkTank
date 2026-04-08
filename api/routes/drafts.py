@@ -1,6 +1,8 @@
 """api/routes/drafts.py — Draft CRUD including missing update endpoint."""
 from fastapi import APIRouter, Body
 from typing import Optional
+import aiosqlite
+from core.database import DB_PATH
 from core.draft_vault import (
     get_all_drafts, get_pending_drafts, get_draft,
     review_draft, save_draft, update_draft, stats, pending_count,
@@ -88,3 +90,16 @@ async def review(
     if not ok and action == "approved":
         return {"error": "Cannot approve a draft in 'revised' status — creator must review changes first."}
     return {"ok": True, "action": action}
+
+
+@router.get("/{draft_id}/history")
+async def draft_history(draft_id: str):
+    """Return full edit/status history for a draft."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM draft_history WHERE draft_id=? ORDER BY created_at ASC",
+            (draft_id,)
+        ) as cur:
+            rows = await cur.fetchall()
+    return [dict(r) for r in rows]

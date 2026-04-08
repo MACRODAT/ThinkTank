@@ -23,21 +23,9 @@ def _rows(rs): return [dict(r) for r in rs]
 
 @router.get("/api/agents/heartbeat/status")
 async def heartbeat_status():
-    """Show agent queue: who ran last, who is next."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("""
-            SELECT a.id, a.name, a.dept_id, a.is_ceo, a.last_heartbeat,
-                   a.heartbeat_interval, a.title, a.role,
-                   (SELECT summary FROM agent_heartbeat_log
-                    WHERE agent_id=a.id ORDER BY ran_at DESC LIMIT 1) as last_summary,
-                   (SELECT result_type FROM agent_heartbeat_log
-                    WHERE agent_id=a.id ORDER BY ran_at DESC LIMIT 1) as last_result
-            FROM agents a WHERE a.status='active'
-            ORDER BY a.last_heartbeat ASC NULLS FIRST
-        """) as cur:
-            agents = _rows(await cur.fetchall())
-    return {"agents": agents, "queue_length": len(agents)}
+    """Return live heartbeat state from the scheduler."""
+    from core.agent_scheduler import heartbeat_state
+    return heartbeat_state
 
 
 # ══════════════════════════════════════════════════════════════
@@ -413,11 +401,22 @@ async def mark_founder_mail_read(mid: str):
 async def reply_founder_mail(mid: str, reply_body: str = Body(..., embed=True)):
     ts = datetime.utcnow().isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         await db.execute(
             "UPDATE founder_mail SET status='replied', replied_at=?, reply_body=? WHERE id=?",
             (ts, reply_body, mid)
         )
+        # Get the agent who sent this mail so we can trigger their heartbeat
+        async with db.execute("SELECT from_agent_id FROM founder_mail WHERE id=?", (mid,)) as cur:
+            fm = _row(await cur.fetchone())
         await db.commit()
+
+    # Fire off an immediate heartbeat for the originating agent in the background
+    if fm and fm.get("from_agent_id"):
+        import asyncio
+        from core.agent_runner import run_agent_heartbeat as _hb
+        asyncio.create_task(_hb(fm["from_agent_id"]))
+
     return {"ok": True}
 
 
@@ -568,6 +567,13 @@ async def approve_spawn(sid: str, approved_by: str = Body("founder", embed=True)
             (approved_by, sid)
         )
         await db.commit()
+
+    # Notify requesting agent immediately
+    import asyncio
+    from core.agent_runner import run_agent_heartbeat as _hb
+    if req.get("requesting_agent_id"):
+        asyncio.create_task(_hb(req["requesting_agent_id"]))
+
     return {"ok": True, "agent_id": new_agent_id}
 
 
@@ -657,6 +663,13 @@ async def approve_draft_endeavor(
             (reviewed_by, review_notes, eid)
         )
         await db.commit()
+
+    # Trigger immediate heartbeat for the agent who submitted the endeavor
+    if draft and draft.get("created_by"):
+        import asyncio
+        from core.agent_runner import run_agent_heartbeat as _hb
+        asyncio.create_task(_hb(draft["created_by"]))
+
     return {"ok": True, "endeavor_id": real_id}
 
 

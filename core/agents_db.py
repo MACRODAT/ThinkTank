@@ -141,11 +141,35 @@ async def init_agents_db():
                 FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
             )""")
 
+        # Edit / status-change history for drafts
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS draft_history (
+                id          TEXT PRIMARY KEY,
+                draft_id    TEXT NOT NULL,
+                actor       TEXT NOT NULL DEFAULT 'system',
+                action      TEXT NOT NULL,
+                notes       TEXT DEFAULT '',
+                snapshot    TEXT DEFAULT '',
+                created_at  TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
+            )""")
+        try:
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_draft_history ON draft_history(draft_id, created_at)")
+        except Exception:
+            pass
+
         # ── Live migrations (add columns to existing tables safely) ──────
         migrations = [
             ("agent_heartbeat_log", "actions_json",  "ALTER TABLE agent_heartbeat_log ADD COLUMN actions_json TEXT DEFAULT '[]'"),
             ("agents",             "extra_models",   "ALTER TABLE agents ADD COLUMN extra_models TEXT DEFAULT '[]'"),
             ("agents",             "profile_image_url", "ALTER TABLE agents ADD COLUMN profile_image_url TEXT DEFAULT ''"),
+            ("drafts",             "topic_id",       "ALTER TABLE drafts ADD COLUMN topic_id TEXT DEFAULT ''"),
+            ("drafts",             "reviewed_by",    "ALTER TABLE drafts ADD COLUMN reviewed_by TEXT DEFAULT ''"),
+            ("drafts",             "revised_by",     "ALTER TABLE drafts ADD COLUMN revised_by TEXT DEFAULT ''"),
+            ("drafts",             "revised_at",     "ALTER TABLE drafts ADD COLUMN revised_at TEXT DEFAULT ''"),
+            ("drafts",             "assigned_to",    "ALTER TABLE drafts ADD COLUMN assigned_to TEXT DEFAULT ''"),
+            ("drafts",             "created_by_agent","ALTER TABLE drafts ADD COLUMN created_by_agent TEXT DEFAULT ''"),
+            ("mail_messages",      "topic_id",       "ALTER TABLE mail_messages ADD COLUMN topic_id TEXT DEFAULT ''"),
+            ("projects",           "topic_id",       "ALTER TABLE projects ADD COLUMN topic_id TEXT DEFAULT ''"),
         ]
         for table, column, sql in migrations:
             try:

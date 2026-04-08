@@ -1,0 +1,16 @@
+import sys
+sys.path.insert(0, '.')
+content = open('core/agent_runner.py', encoding='utf-8').read()
+print('Lines:', content.count('\n'))
+print('Chars:', len(content))
+idx1 = content.find('def _build_system_prompt')
+idx2 = content.find('def _build_system_prompt', idx1+1)
+print('First _build_system_prompt def at line approx:', content[:idx1].count('\n'))
+print('Second _build_system_prompt def at line approx:', content[:idx2].count('\n') if idx2>0 else 'not found')
+e1 = content.find('async def execute_chat_tool')
+e2 = content.find('async def execute_chat_tool', e1+1)
+print('First execute_chat_tool at line approx:', content[:e1].count('\n'))
+print('Second execute_chat_tool at line approx:', content[:e2].count('\n') if e2>0 else 'not found')
+# Find end of good code
+run_hb = content.rfind('async def run_agent_heartbeat')
+print('Last run_agent_heartbeat at line:', content[:run_hb].count('\n'))

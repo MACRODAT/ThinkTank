@@ -127,3 +127,24 @@ export const chatWithAgent          = (id, message) => req(`/agents/${id}/chat`,
 export const clearAgentChat         = (id)           => req(`/agents/${id}/chat`, { method:'DELETE' })
 export const getHeartbeatStatus     = ()             => req('/agents/heartbeat/status')
 export const updateHeartbeatInterval= (id, interval) => req(`/agents/${id}/heartbeat-interval`, { method:'PUT', body:{ interval } })
+
+// Topics
+export const getTopics       = ()           => req('/topics')
+export const searchTopics    = (q)          => req(`/topics/search?q=${encodeURIComponent(q)}`)
+export const createTopic     = (body)       => req('/topics',              { method:'POST',   body })
+export const updateTopic     = (id, body)   => req(`/topics/${id}`,        { method:'PUT',    body })
+export const deleteTopic     = (id)         => req(`/topics/${id}`,        { method:'DELETE' })
+export const assignTopic     = (id, body)   => req(`/topics/${id}/assign`, { method:'POST',   body })
+
+// Presets (external JSON files)
+export const getPresetList   = ()           => req('/presets')
+export const getPreset       = (name)       => req(`/presets/${name}`)
+export const savePreset      = (name, body) => req(`/presets/${name}`,     { method:'PUT',    body })
+
+// Random face for agent profile images
+export const getRandomFace   = ()           => req('/agents/random-face')
+
+// Prompts overview
+export const getAllPrompts    = ()           => req('/admin/all-prompts')
+export const saveAgentPrompt = (id, body)   => req(`/agents/${id}`,        { method:'PUT',    body })
+

@@ -4,9 +4,24 @@ core/draft_vault.py — Stores and manages AI-generated drafts.
 from __future__ import annotations
 import aiosqlite
 import json
+import uuid
 from datetime import datetime
 from typing import Optional, List, Dict
 from core.database import DB_PATH, new_id, log_event
+
+
+async def _log_draft_history(draft_id: str, actor: str, action: str,
+                              notes: str = "", snapshot: str = ""):
+    """Append one history entry for a draft."""
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "INSERT INTO draft_history (id,draft_id,actor,action,notes,snapshot) VALUES (?,?,?,?,?,?)",
+                (str(uuid.uuid4()), draft_id, actor, action, notes or "", snapshot or "")
+            )
+            await db.commit()
+    except Exception:
+        pass   # Never crash the caller over history logging
 
 
 async def _run_draft_migrations():
@@ -44,6 +59,8 @@ async def save_draft(dept_id: str, draft_type: str, title: str, content: str,
         await db.commit()
     await log_event(dept_id, "draft_created", f"[{draft_type.upper()}] {title}",
                     {"draft_id": draft_id, "priority": priority})
+    await _log_draft_history(draft_id, created_by_agent or "system", "created",
+                              f"Draft created: {title}")
     return draft_id
 
 
@@ -73,6 +90,11 @@ async def update_draft(draft_id: str, title: Optional[str] = None,
             params.append(draft_id)
             await db.execute(f"UPDATE drafts SET {','.join(sets)} WHERE id=?", params)
             await db.commit()
+    change_desc = []
+    if title is not None:   change_desc.append(f"title→'{title}'")
+    if content is not None: change_desc.append(f"content updated ({'append' if append else 'replace'})")
+    if priority is not None:change_desc.append(f"priority→{priority}")
+    await _log_draft_history(draft_id, "system", "edited", ", ".join(change_desc))
     return True
 
 
@@ -140,13 +162,14 @@ async def review_draft(draft_id: str, action: str,
                 return False  # must be reviewed by creator first
 
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         if action == "revised":
             # When noting revisions: stamp revised_by + revised_at, keep review_notes
             if notes:
                 async with db.execute("SELECT content FROM drafts WHERE id=?", (draft_id,)) as cur:
                     row = await cur.fetchone()
                 note_block = f"\n\n---\n**📝 REVISION REQUEST [{ts[:16]}] by {reviewed_by}:**\n{notes}"
-                new_content = (row["content"] if row else "") + note_block
+                new_content = ((row["content"] or "") if row else "") + note_block
                 await db.execute(
                     "UPDATE drafts SET status='revised', review_notes=?, revised_by=?, revised_at=?, content=? WHERE id=?",
                     (notes, reviewed_by, ts, new_content, draft_id)
@@ -165,6 +188,8 @@ async def review_draft(draft_id: str, action: str,
 
     await log_event(None, "draft_reviewed", f"Draft {draft_id} → {action}",
                     {"draft_id": draft_id, "action": action, "by": reviewed_by})
+    # Always log the status change with actor + notes
+    await _log_draft_history(draft_id, reviewed_by, action, notes or "")
     return True
 
 

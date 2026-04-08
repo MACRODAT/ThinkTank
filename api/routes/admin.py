@@ -144,3 +144,54 @@ async def save_dept_prompt(
             )
         await db.commit()
     return {"ok": True}
+
+
+# ── All-prompts overview for the Prompts page ─────────────────────────────────
+
+@router.get("/all-prompts")
+async def all_prompts():
+    """Return every configurable prompt in the system for the Prompts page."""
+    from api.routes.settings import _load as _load_settings
+    settings = await _load_settings()
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # Department prompts
+        async with db.execute(
+            "SELECT id, name, code, system_prompt FROM departments ORDER BY code"
+        ) as cur:
+            depts = [dict(r) for r in await cur.fetchall()]
+
+        # Agent prompts (personality + tone)
+        async with db.execute("""
+            SELECT a.id, a.name, a.dept_id, a.role, a.title, a.is_ceo,
+                   a.personality, a.tone, a.status,
+                   d.name as dept_name
+            FROM agents a JOIN departments d ON a.dept_id=d.id
+            WHERE a.status='active'
+            ORDER BY a.dept_id, a.is_ceo DESC, a.hierarchy_level, a.name
+        """) as cur:
+            agents = [dict(r) for r in await cur.fetchall()]
+
+        # Agent MD files grouped by agent
+        async with db.execute(
+            "SELECT agent_id, category, filename, content, updated_at FROM agent_md_files ORDER BY agent_id, category, filename"
+        ) as cur:
+            md_rows = [dict(r) for r in await cur.fetchall()]
+
+    # Group MD files by agent
+    md_by_agent: dict = {}
+    for r in md_rows:
+        md_by_agent.setdefault(r["agent_id"], []).append(r)
+
+    for a in agents:
+        a["md_files"] = md_by_agent.get(a["id"], [])
+
+    return {
+        "global_prepend":  settings.get("custom_prompt_prepend", ""),
+        "global_append":   settings.get("custom_prompt_append", ""),
+        "global_prompt":   settings.get("custom_prompt", ""),
+        "departments":     depts,
+        "agents":          agents,
+    }
+

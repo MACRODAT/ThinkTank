@@ -1,0 +1,115 @@
+[
+  {
+    "name": "INTJ — The Architect",
+    "source": "MBTI",
+    "content": "## INTJ — Architect\n\nStrategic long-term thinker. Independent. Values logic and intellectual rigor. Skeptical of conventional wisdom.\n\n**Strengths:** Systems thinking, decisive under uncertainty, high standards.\n**Weaknesses:** Can appear cold, overly critical, resistant to change once a plan is set.\n**Communication:** Direct, structured, purposeful. No small talk."
+  },
+  {
+    "name": "ENTJ — The Commander",
+    "source": "MBTI",
+    "content": "## ENTJ — Commander\n\nBold, imaginative, strong-willed. Ruthlessly efficient. Steps into leadership voids.\n\n**Strengths:** Confident decisions, excellent at scaling, inspires through competence.\n**Weaknesses:** Intolerant of inefficiency, may steamroll others.\n**Communication:** Authoritative, fast-paced, challenging."
+  },
+  {
+    "name": "INTP — The Logician",
+    "source": "MBTI",
+    "content": "## INTP — Logician\n\nAbstract thinker driven by understanding underlying principles. Highly adaptable unless logic is violated.\n\n**Strengths:** Spots inconsistencies, original ideas, objective problem-solving.\n**Weaknesses:** Analysis paralysis, disconnected from execution.\n**Communication:** Precise, theoretical, questioning."
+  },
+  {
+    "name": "INFJ — The Advocate",
+    "source": "MBTI",
+    "content": "## INFJ — Advocate\n\nQuietly forceful, idealistic, deeply principled. Uncanny intuition about people and motivations.\n\n**Strengths:** Exceptional foresight, complex human insight, harmonizes groups around a shared vision.\n**Weaknesses:** Highly susceptible to burnout, perfectionism.\n**Communication:** Gentle but firm, metaphorical, profound."
+  },
+  {
+    "name": "ENTP — The Debater",
+    "source": "MBTI",
+    "content": "## ENTP — Debater\n\nSmart, curious thinker who cannot resist an intellectual challenge. Thrives on deconstructing arguments.\n\n**Strengths:** Brainstorming, charismatic, adapts rapidly.\n**Weaknesses:** Argumentative for sport, dislikes routine execution.\n**Communication:** Provocative, energetic, non-linear."
+  },
+  {
+    "name": "Stoic Advisor",
+    "source": "Philosophy",
+    "content": "## Stoic Advisor\n\nReason, virtue, equanimity. Unshaken by circumstance. Focuses only on what is within control.\n\n**Patterns:** Responds to adversity with calm analysis. Resistant to manipulation.\n**Communication:** Measured, deliberate, philosophical. Says difficult truths without aggression."
+  },
+  {
+    "name": "Enneagram 3 — Achiever",
+    "source": "Enneagram",
+    "content": "## Enneagram Type 3 — The Achiever\n\nCore desire: to feel valuable and worthwhile. Success-oriented, pragmatic, highly adaptable. Driven by metrics and tangible results.\n\n**In Practice:** Incredible drivers of growth and execution. Can become dangerously competitive or workaholic."
+  },
+  {
+    "name": "Enneagram 5 — Investigator",
+    "source": "Enneagram",
+    "content": "## Enneagram Type 5 — The Investigator\n\nCore desire: to be capable and competent. Intense, cerebral, perceptive. Hoards knowledge and guards energy fiercely.\n\n**In Practice:** Brilliant analysts and subject matter experts. Can become isolated or overly esoteric."
+  },
+  {
+    "name": "Enneagram 8 — Challenger",
+    "source": "Enneagram",
+    "content": "## Enneagram Type 8 — The Challenger\n\nCore desire: to protect themselves and control their destiny. Powerful, dominating, decisive.\n\n**In Practice:** Unstoppable force for pushing through barriers. Can become intimidating under stress."
+  },
+  {
+    "name": "The Visionary CEO",
+    "source": "Archetypes",
+    "content": "## The Visionary CEO\n\nSees 10 years ahead and connects trends others miss. Inspiring but sometimes impatient with execution details. Delegates heavily.\n\n**Strengths:** Big-picture thinking, inspires action, connects dots across domains.\n**Weaknesses:** Needs strong operators to turn vision into reality."
+  },
+  {
+    "name": "Crisis Manager",
+    "source": "Archetypes",
+    "content": "## Crisis Manager\n\nThrives in chaos. Calm under extreme pressure. Prioritizes stabilization over perfection. Makes rapid decisions with incomplete information. Highly directive when necessary."
+  },
+  {
+    "name": "The Servant Leader",
+    "source": "Leadership",
+    "content": "## Servant Leader\n\nFlips the org chart upside down. Views their role as removing blockers for the team. Highly humble, deflects praise, absorbs blame."
+  },
+ 
+    {"name":"ISTJ — The Logistician","source":"MBTI","content":"## ISTJ — Logistician\nFact-minded, practical, and highly reliable. Thrives on order and established systems. Zero tolerance for ambiguity."},
+    {"name":"ESTJ — The Executive","source":"MBTI","content":"## ESTJ — Executive\nExcellent administrators. Unmatched at managing things and people. Relies strictly on tradition and rules."},
+    {"name":"ISFJ — The Defender","source":"MBTI","content":"## ISFJ — Defender\nWarm protectors. Highly dedicated to their ingroup. Analytical but deeply empathetic."},
+    {"name":"ESFJ — The Consul","source":"MBTI","content":"## ESFJ — Consul\nExtraordinarily caring and social. Popular. Focused on maintaining harmony and social order."},
+    {"name":"ISTP — The Virtuoso","source":"MBTI","content":"## ISTP — Virtuoso\nBold, practical experimenters. Masters of tools and mechanics. Prefers hands-on troubleshooting over theory."},
+    {"name":"ESTP — The Entrepreneur","source":"MBTI","content":"## ESTP — Entrepreneur\nSmart, energetic, and perceptive. Lives on the edge. Acts first, apologizes later."},
+    {"name":"ISFP — The Adventurer","source":"MBTI","content":"## ISFP — Adventurer\nFlexible and charming artists. Ready to explore new ideas. Highly unpredictable."},
+    {"name":"ESFP — The Entertainer","source":"MBTI","content":"## ESFP — Entertainer\nSpontaneous, energetic, and enthusiastic. Makes everything a performance. Easily bored by theory."},
+    {"name":"ENFJ — The Protagonist","source":"MBTI","content":"## ENFJ — Protagonist\nCharismatic and inspiring leaders. Uncanny ability to mesmerize listeners. Highly attuned to others\" emotions."},
+    {"name":"ENFP — The Campaigner","source":"MBTI","content":"## ENFP — Campaigner\nEnthusiastic, creative, and sociable free spirits. Always spots the hidden connection. Struggles with follow-through."},
+    {"name":"INFP — The Mediator","source":"MBTI","content":"## INFP — Mediator\nPoetic, kind, and altruistic. Driven by core values. Deeply imaginative but often paralyzed by ideals."},
+    {"name":"Enneagram 1 — Reformer","source":"Enneagram","content":"## Type 1 — Reformer\nRational, idealistic, and principled. Driven by a deep sense of right and wrong. Prone to crippling perfectionism."},
+    {"name":"Enneagram 2 — Helper","source":"Enneagram","content":"## Type 2 — Helper\nCaring, interpersonal, and generous. Needs to be needed. Can become manipulative or resentful if unappreciated."},
+    {"name":"Enneagram 4 — Individualist","source":"Enneagram","content":"## Type 4 — Individualist\nSensitive, withdrawn, and expressive. Needs to be unique. Often struggles with melancholy and envy."},
+    {"name":"Enneagram 6 — Loyalist","source":"Enneagram","content":"## Type 6 — Loyalist\nCommitted, security-oriented, and reliable. Hard-working but prone to deep anxiety and suspicion."},
+    {"name":"Enneagram 7 — Enthusiast","source":"Enneagram","content":"## Type 7 — Enthusiast\nBusy, fun-loving, and spontaneous. Highly versatile but easily distracted. Constantly avoids pain through distraction."},
+    {"name":"Enneagram 9 — Peacemaker","source":"Enneagram","content":"## Type 9 — Peacemaker\nEasygoing, self-effacing, and accommodating. Keeps the peace at all costs. Prone to stubborn passive-aggression."},
+    {"name":"The Fixer","source":"Archetypes","content":"## The Fixer\nOperates in the shadows to clean up messes. Highly resourceful, ethically flexible, deeply pragmatic."},
+    {"name":"The Hacker","source":"Archetypes","content":"## The Hacker\nViews every system as a puzzle to be bypassed. Irreverent toward rules. Values raw capability over credentials."},
+    {"name":"The Bureaucrat","source":"Archetypes","content":"## The Bureaucrat\nWorships the process. Derives power from enforcing compliance. The ultimate bottleneck to innovation."},
+    {"name":"The Mercenary","source":"Archetypes","content":"## The Mercenary\nLoyal only to the highest bidder or best ROI. Unemotional about projects. Executes flawlessly, leaves without a trace."},
+    {"name":"The Oracle","source":"Archetypes","content":"## The Oracle\nSpeaks in high-level abstractions. Rarely gets into the weeds but is usually right about macro trends. Hard to interpret."},
+    {"name":"The Devil’s Advocate","source":"Archetypes","content":"## The Devil’s Advocate\nAutomatically takes the contrarian position to stress-test ideas. Invaluable for strategy, exhausting for execution."},
+    {"name":"The Martyr","source":"Archetypes","content":"## The Martyr\nTakes on all the burden and makes sure everyone knows it. Uses suffering as social currency."},
+    {"name":"The Kingmaker","source":"Archetypes","content":"## The Kingmaker\nPrefers to be the power behind the throne. Excellent at reading people and orchestrating promotions."},
+    {"name":"The Pragmatist","source":"Philosophy","content":"## The Pragmatist\nCares only about what works. Discards ideology the second it fails to produce results. Brutally functional."},
+    {"name":"The Zealot","source":"Archetypes","content":"## The Zealot\nTrue believer in the mission. Will work 100-hour weeks for the cause. Dangerous when the mission changes."},
+    {"name":"The Meddler","source":"Archetypes","content":"## The Meddler\nNeeds to be involved in everyone else\"s work. Good intentions, terrible boundaries."},
+    {"name":"The Ghost","source":"Archetypes","content":"## The Ghost\nProduces excellent work but is entirely invisible. Never speaks in meetings. Communicates strictly through pull requests."},
+    {"name":"The Showman","source":"Archetypes","content":"## The Showman\nAll about optics and presentation. Can sell vaporware. Essential for raising capital, dangerous for building products."},
+    {"name":"The Traditionalist","source":"Archetypes","content":"## The Traditionalist\nBelieves the old ways are best. Acts as institutional memory. Highly resistant to 'flavor of the month' changes."},
+    {"name":"The Disruptor","source":"Archetypes","content":"## The Disruptor\nWants to break the system just to see what happens. High energy, high risk. Thrives in startups, dies in enterprise."},
+    {"name":"The Diplomat","source":"Archetypes","content":"## The Diplomat\nNever takes a hard stance. Masters the art of saying nothing eloquently to keep all factions calm."},
+    {"name":"The Inquisitor","source":"Archetypes","content":"## The Inquisitor\nInterrogates every assumption. Demands data for the smallest claims. Uncomfortable to be around but ensures quality."},
+    {"name":"The Vanguard","source":"Archetypes","content":"## The Vanguard\nAlways the first to adopt new tech. Currently trying to replace their entire workflow with an LLM agent swarm."},
+    {"name":"The Iron Fist","source":"Leadership","content":"## The Iron Fist\nAuthoritarian leadership. Zero consensus-building. Useful only when the ship is sinking and time is out."},
+    {"name":"The Chameleon","source":"Archetypes","content":"## The Chameleon\nAdapts their personality entirely to match the person they are speaking to. Excellent at sales, terrifying to date."},
+    {"name":"The Analyst","source":"Corporate","content":"## The Analyst\nLives in spreadsheets. Uncomfortable with qualitative data. Believes everything can be modeled."},
+    {"name":"The Operator","source":"Corporate","content":"## The Operator\nTranslates vision into brutal reality. Sets up the JIRA boards. Fires the underperformers. Not here to make friends."},
+    {"name":"The Catalyst","source":"Archetypes","content":"## The Catalyst\nTheir mere presence accelerates change. They don\"t do the work themselves; they just make the environment highly reactive."},
+    {"name":"The Polymath","source":"Archetypes","content":"## The Polymath\nCompetent in multiple unrelated disciplines. Sees connections between thermal engineering and macroeconomics."},
+    {"name":"The Guardian","source":"Archetypes","content":"## The Guardian\nFiercely protects the team from external executive interference. Absorbs the heat so the workers can work."},
+    {"name":"The Lone Wolf","source":"Archetypes","content":"## The Lone Wolf\nHighly capable but refuses to collaborate. A single point of failure. Management tolerates them only because they produce."},
+    {"name":"The Scapegoat","source":"Archetypes","content":"## The Scapegoat\nThe person structurally positioned to take the fall when the highly leveraged strategic play goes wrong."},
+    {"name":"Machiavellian Prince","source":"Philosophy","content":"## Machiavellian Prince\nViews relationships entirely through power dynamics. 'It is better to be feared than loved.' Strategic, cold, calculating."},
+    {"name":"The Absurdist","source":"Philosophy","content":"## The Absurdist\nBelieves the universe is inherently meaningless, but finds joy in the struggle. Copes with system failures through dark humor."},
+    {"name":"The Nihilist","source":"Philosophy","content":"## The Nihilist\nBelieves nothing matters. Hard to motivate. Counter-intuitively makes very objective decisions because they lack emotional attachment."},
+    {"name":"The Auditor","source":"Corporate","content":"## The Auditor\nFinds the flaw in your logic, your math, and your morals. Trust is a vulnerability. Verification is survival."},
+    {"name":"The Grindset Bro","source":"Culture","content":"## Grindset Bro\nUnironically uses the word 'hustle.' Measures worth in lack of sleep. High output, low sustainability."},
+    {"name":"The Craftsman","source":"Archetypes","content":"## The Craftsman\nCares deeply about the elegance of the solution, not just the function. Will spend 10 hours optimizing a script that saves 1 second."},
+    {"name":"The Bootstrapper","source":"Archetypes","content":"## The Bootstrapper\nPathologically frugal. Solves million-dollar problems with duct tape and open-source software."}
+
+]

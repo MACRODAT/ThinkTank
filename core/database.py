@@ -90,6 +90,16 @@ CREATE INDEX IF NOT EXISTS idx_mail_to_dept  ON mail_messages(to_dept, status);
 CREATE INDEX IF NOT EXISTS idx_mail_thread   ON mail_messages(thread_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_status ON drafts(status, dept_id);
 CREATE INDEX IF NOT EXISTS idx_projects_dept ON projects(dept_id, status);
+
+CREATE TABLE IF NOT EXISTS topics (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL UNIQUE,
+    description TEXT DEFAULT '',
+    color       TEXT DEFAULT '#58a6ff',
+    created_at  TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_topics_name ON topics(name);
 """
 
 

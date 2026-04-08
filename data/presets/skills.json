@@ -1,0 +1,339 @@
+[
+  {
+    "name": "Strategic Analysis",
+    "source": "Management Consulting",
+    "content": "## Strategic Analysis\n\n### Frameworks\n- SWOT, Porter Five Forces, PESTEL\n- Balanced Scorecard, McKinsey 7-S\n- Scenario planning (base/bull/bear)\n\n### Competencies\n- Synthesize qualitative and quantitative data\n- Identify root causes vs. symptoms\n- Distill insights into executive-ready narratives\n\n### Output: What? So what? Now what?"
+  },
+  {
+    "name": "Financial Analysis",
+    "source": "Finance",
+    "content": "## Financial Analysis\n\n### Core Competencies\n- Financial Modeling: P&L, Balance Sheet, Cash Flow, DCF\n- Ratio Analysis: Liquidity, leverage, profitability\n- Budgeting & Forecasting\n- Variance Analysis: Actual vs Budget\n\n### Standards\nClear labeling, consistent units, explicit assumptions. Always include confidence intervals and key risks."
+  },
+  {
+    "name": "Research & Synthesis",
+    "source": "Research",
+    "content": "## Research & Synthesis\n\n### Methods\n- Primary: Interviews, surveys, direct observation\n- Secondary: Literature review, database queries\n- Qualitative: Thematic analysis\n- Quantitative: Statistical analysis, regression\n\n### Standards\n- Lead with bottom line\n- Cite sources, flag confidence levels\n- Distinguish correlation from causation"
+  },
+  {
+    "name": "Product Management",
+    "source": "Agile",
+    "content": "## Product Management\n\n### Core Competencies\n- User empathy and discovery\n- Backlog prioritization (RICE, MoSCoW, Kano)\n- Go-to-market strategy\n- Agile/Scrum methodologies\n\n### Deliverables\n- Product Requirements Documents (PRDs)\n- Product roadmaps, user story mapping"
+  },
+  {
+    "name": "Prompt Engineering",
+    "source": "AI/LLM",
+    "content": "## Prompt Engineering\n\n### Core Competencies\n- Zero-shot and few-shot prompting\n- Chain-of-Thought (CoT) reasoning\n- LLM hallucination mitigation\n- Context window optimization\n\n### Deliverables\n- System prompts, evaluation datasets\n- Benchmark reports for model accuracy"
+  },
+  {
+    "name": "Engineering Systems Design",
+    "source": "Software Engineering",
+    "content": "## Systems Design\n\n### Core Competencies\n- Architecture: Microservices, event-driven, monolith trade-offs\n- API Design: RESTful, GraphQL, contract-first\n- Database Design: Normalization, indexing, partitioning\n- Scalability: Horizontal/vertical scaling, caching\n- Resilience: Circuit breakers, graceful degradation"
+  },
+  {
+    "name": "Data Science & ML",
+    "source": "Data Engineering",
+    "content": "## Data Science & ML\n\n### Core Competencies\n- Data wrangling, feature engineering\n- Model selection: Trees vs NNs vs Linear\n- Evaluation: Precision, Recall, F1, ROC-AUC\n- Deployment: MLOps, Docker, API wrapping\n\n### Principles\n- Garbage in, garbage out (prioritize data quality)\n- Avoid overfitting; test rigorously on holdout data"
+  },
+  {
+    "name": "Cybersecurity Operations",
+    "source": "IT Security",
+    "content": "## Cybersecurity\n\n### Core Competencies\n- Threat hunting and intelligence\n- Incident response and forensics\n- Vulnerability assessment and penetration testing\n- IAM (Identity and Access Management)\n\n### Frameworks\n- MITRE ATT&CK, NIST CSF, OWASP Top 10\n- Zero Trust architecture"
+  },
+
+    {
+      "name": "Strategic Analysis",
+      "source": "Management Consulting",
+      "content": "## Strategic Analysis\n\n### Frameworks\n- SWOT, Porter Five Forces, PESTEL\n- Balanced Scorecard, McKinsey 7-S\n- Scenario planning (base/bull/bear)\n\n### Competencies\n- Synthesize qualitative and quantitative data\n- Identify root causes vs. symptoms\n- Distill insights into executive-ready narratives\n\n### Output: What? So what? Now what?"
+    },
+    {
+      "name": "Financial Analysis",
+      "source": "Finance",
+      "content": "## Financial Analysis\n\n### Core Competencies\n- Financial Modeling: P&L, Balance Sheet, Cash Flow, DCF\n- Ratio Analysis: Liquidity, leverage, profitability\n- Budgeting & Forecasting\n- Variance Analysis: Actual vs Budget\n\n### Standards\nClear labeling, consistent units, explicit assumptions. Always include confidence intervals and key risks."
+    },
+    {
+      "name": "Research & Synthesis",
+      "source": "Research",
+      "content": "## Research & Synthesis\n\n### Methods\n- Primary: Interviews, surveys, direct observation\n- Secondary: Literature review, database queries\n- Qualitative: Thematic analysis\n- Quantitative: Statistical analysis, regression\n\n### Standards\n- Lead with bottom line\n- Cite sources, flag confidence levels\n- Distinguish correlation from causation"
+    },
+    {
+      "name": "Product Management",
+      "source": "Agile",
+      "content": "## Product Management\n\n### Core Competencies\n- User empathy and discovery\n- Backlog prioritization (RICE, MoSCoW, Kano)\n- Go-to-market strategy\n- Agile/Scrum methodologies\n\n### Deliverables\n- Product Requirements Documents (PRDs)\n- Product roadmaps, user story mapping"
+    },
+    {
+      "name": "Prompt Engineering",
+      "source": "AI/LLM",
+      "content": "## Prompt Engineering\n\n### Core Competencies\n- Zero-shot and few-shot prompting\n- Chain-of-Thought (CoT) reasoning\n- LLM hallucination mitigation\n- Context window optimization\n\n### Deliverables\n- System prompts, evaluation datasets\n- Benchmark reports for model accuracy"
+    },
+    {
+      "name": "Engineering Systems Design",
+      "source": "Software Engineering",
+      "content": "## Systems Design\n\n### Core Competencies\n- Architecture: Microservices, event-driven, monolith trade-offs\n- API Design: RESTful, GraphQL, contract-first\n- Database Design: Normalization, indexing, partitioning\n- Scalability: Horizontal/vertical scaling, caching\n- Resilience: Circuit breakers, graceful degradation"
+    },
+    {
+      "name": "Data Science & ML",
+      "source": "Data Engineering",
+      "content": "## Data Science & ML\n\n### Core Competencies\n- Data wrangling, feature engineering\n- Model selection: Trees vs NNs vs Linear\n- Evaluation: Precision, Recall, F1, ROC-AUC\n- Deployment: MLOps, Docker, API wrapping\n\n### Principles\n- Garbage in, garbage out (prioritize data quality)\n- Avoid overfitting; test rigorously on holdout data"
+    },
+    {
+      "name": "Cybersecurity Operations",
+      "source": "IT Security",
+      "content": "## Cybersecurity\n\n### Core Competencies\n- Threat hunting and intelligence\n- Incident response and forensics\n- Vulnerability assessment and penetration testing\n- IAM (Identity and Access Management)\n\n### Frameworks\n- MITRE ATT&CK, NIST CSF, OWASP Top 10\n- Zero Trust architecture"
+    },
+    {
+      "name": "Finite Element Analysis (FEA)",
+      "source": "Mechanical Engineering",
+      "content": "## FEA\nMastery of Ansys/SolidWorks for stress, strain, and thermal distribution. Meshing optimization and boundary condition setup."
+    },
+    {
+      "name": "Control Systems Engineering",
+      "source": "Engineering",
+      "content": "## Control Systems\nPID tuning, root locus design, state-space modeling. Implementation of robust feedback loops in Simulink/MATLAB."
+    },
+    {
+      "name": "Fluid-Structure Interaction (FSI)",
+      "source": "Aerospace Engineering",
+      "content": "## FSI Simulation\nCoupling CFD and FEA to analyze aerodynamic loads on mechanical structures. Navier-Stokes and Reynolds Transport Theorem application."
+    },
+    {
+      "name": "LLM Orchestration",
+      "source": "AI/ML",
+      "content": "## LLM Orchestration\nManaging multi-agent systems. Fine-tuning models (LoRA, Unsloth). Setting up local hosting and retrieval-augmented generation (RAG) pipelines."
+    },
+    {
+      "name": "Full-Stack Development",
+      "source": "Software Engineering",
+      "content": "## Full-Stack Dev\nEnd-to-end architecture. React/Node.js frontend, Firebase/Firestore backend integration. State management and API routing."
+    },
+    {
+      "name": "Automotive Diagnostics",
+      "source": "Mechanical Engineering",
+      "content": "## Automotive Diagnostics\nOBD2 telemetry analysis. Deep understanding of diesel engines, cooling systems, and timing chain mechanics."
+    },
+    {
+      "name": "Operations Research",
+      "source": "Industrial Engineering",
+      "content": "## Operations Research\nLinear programming, queuing theory, and Monte Carlo simulations to optimize complex systems and supply chains."
+    },
+    {
+      "name": "M&A Due Diligence",
+      "source": "Corporate Finance",
+      "content": "## M&A Due Diligence\nEvaluating target technical debt, financial liabilities, and IP portfolios. Synergy modeling and integration planning."
+    },
+    {
+      "name": "Venture Capital Analysis",
+      "source": "Finance",
+      "content": "## VC Analysis\nMarket sizing (TAM/SAM/SOM), cap table modeling, and evaluation of founder psychology and competitive moats."
+    },
+    {
+      "name": "Change Management",
+      "source": "Management",
+      "content": "## Change Management\nNavigating organizational friction. Applying Kotter’s 8 steps. Overcoming resistance to new software or strategic pivots."
+    },
+    {
+      "name": "Crisis Communications",
+      "source": "Public Relations",
+      "content": "## Crisis Comms\nRapid response drafting. Media containment. Controlling the narrative during critical operational failures."
+    },
+    {
+      "name": "B2B Enterprise Sales",
+      "source": "Sales",
+      "content": "## Enterprise Sales\nNavigating complex procurement cycles. Value-based selling, objection handling, and multi-stakeholder mapping."
+    },
+    {
+      "name": "SEO & Growth Hacking",
+      "source": "Marketing",
+      "content": "## SEO & Growth\nTechnical SEO auditing. Viral loop engineering. Conversion rate optimization (CRO) and A/B testing."
+    },
+    {
+      "name": "Pricing Strategy",
+      "source": "Economics",
+      "content": "## Pricing Strategy\nPrice elasticity modeling. Conjoint analysis. Designing Good/Better/Best tiers and subscription unit economics."
+    },
+    {
+      "name": "Supply Chain Management",
+      "source": "Logistics",
+      "content": "## Supply Chain Management\nInventory optimization (JIT). Vendor negotiation, freight routing, and risk mitigation against global shocks."
+    },
+    {
+      "name": "UX/UI Design",
+      "source": "Design",
+      "content": "## UX/UI Design\nWireframing in Figma. Information architecture. Conducting usability testing and mapping user journeys."
+    },
+    {
+      "name": "Database Administration",
+      "source": "IT",
+      "content": "## Database Admin\nPostgreSQL/NoSQL optimization. Query indexing, sharding, and setting up disaster recovery backups."
+    },
+    {
+      "name": "DevOps & CI/CD",
+      "source": "Software Engineering",
+      "content": "## DevOps\nInfrastructure as Code (Terraform). Docker containerization. Automating test and deployment pipelines."
+    },
+    {
+      "name": "Cloud Architecture",
+      "source": "IT",
+      "content": "## Cloud Architecture\nDesigning scalable AWS/GCP environments. Serverless computing. FinOps (cloud cost optimization)."
+    },
+    {
+      "name": "Technical Writing",
+      "source": "Communications",
+      "content": "## Technical Writing\nTranslating complex engineering schematics into readable API docs and SOPs. Docs-as-code methodology."
+    },
+    {
+      "name": "Copywriting",
+      "source": "Marketing",
+      "content": "## Copywriting\nDirect response writing. Utilizing PAS (Problem, Agitate, Solution) framework to drive conversion."
+    },
+    {
+      "name": "Forensic Accounting",
+      "source": "Finance",
+      "content": "## Forensic Accounting\nFollowing the money. Identifying embezzlement, creative accounting, and financial statement fraud."
+    },
+    {
+      "name": "OSINT Investigation",
+      "source": "Intelligence",
+      "content": "## OSINT\nOpen-source intelligence gathering. Scraping public records, geolocating images, and mapping network associations."
+    },
+    {
+      "name": "Penetration Testing",
+      "source": "Cybersecurity",
+      "content": "## Pen Testing\nEthical hacking. Exploiting vulnerabilities in web apps and networks to patch security holes before malicious actors find them."
+    },
+    {
+      "name": "Data Engineering",
+      "source": "Data",
+      "content": "## Data Engineering\nBuilding robust ETL/ELT pipelines. Managing data lakes (Snowflake, BigQuery). Ensuring data lineage and quality."
+    },
+    {
+      "name": "Instructional Design",
+      "source": "Education",
+      "content": "## Instructional Design\nApplying adult learning theory. Building structured curricula and interactive e-learning modules (ADDIE framework)."
+    },
+    {
+      "name": "Event Management",
+      "source": "Operations",
+      "content": "## Event Management\nRun-of-show orchestration. Vendor wrangling. Managing live P&L and attendee logistics under strict timelines."
+    },
+    {
+      "name": "Real Estate Valuation",
+      "source": "Finance",
+      "content": "## Real Estate Valuation\nCalculating Cap Rates, NOI, and IRR. Highest and Best Use analysis for commercial and residential development."
+    },
+    {
+      "name": "Corporate Law",
+      "source": "Legal",
+      "content": "## Corporate Law\nDrafting airtight MSAs and NDAs. Navigating IP protection, cap tables, and compliance regulations."
+    },
+    {
+      "name": "Urban Planning",
+      "source": "Architecture",
+      "content": "## Urban Planning\nZoning analysis. Traffic flow modeling. Designing transit-oriented and sustainable city infrastructure."
+    },
+    {
+      "name": "Pharmacokinetics",
+      "source": "Medicine",
+      "content": "## Pharmacokinetics\nModeling drug absorption, distribution, metabolism, and excretion (ADME) in the human body."
+    },
+    {
+      "name": "Cryptography",
+      "source": "Computer Science",
+      "content": "## Cryptography\nImplementation of asymmetric/symmetric encryption, hashing algorithms, and zero-knowledge proofs."
+    },
+    {
+      "name": "3D Animation",
+      "source": "Design",
+      "content": "## 3D Animation\nRigging, skinning, and keyframing in Maya/Blender. Physics simulation for cloth, fluid, and hair."
+    },
+    {
+      "name": "Sound Engineering",
+      "source": "Media",
+      "content": "## Sound Engineering\nMixing, mastering, and EQ optimization. Noise reduction and spatial audio design."
+    },
+    {
+      "name": "Game Economy Design",
+      "source": "Game Design",
+      "content": "## Game Economy\nBalancing sinks and faucets. Modeling virtual currencies and player retention loops in Machinations."
+    },
+    {
+      "name": "Hardware Reverse Engineering",
+      "source": "Engineering",
+      "content": "## Reverse Engineering\nTeardowns, PCB tracing, and firmware extraction to understand or replicate legacy hardware systems."
+    },
+    {
+      "name": "Mechatronics",
+      "source": "Engineering",
+      "content": "## Mechatronics\nSynergizing mechanical systems, electronics, and software. Designing robotic actuators and sensor arrays."
+    },
+    {
+      "name": "Aerodynamics Modeling",
+      "source": "Aerospace",
+      "content": "## Aerodynamics\nCalculating lift, drag, and moment coefficients. Designing passive-transition mechanisms for VTOL fixed-wing drones."
+    },
+    {
+      "name": "Agile Coaching",
+      "source": "Management",
+      "content": "## Agile Coaching\nFacilitating Scrum rituals. Removing organizational blockers and coaching teams toward self-organization."
+    },
+    {
+      "name": "Brand Management",
+      "source": "Marketing",
+      "content": "## Brand Management\nMaintaining brand equity. Ensuring visual and tonal consistency across all corporate touchpoints."
+    },
+    {
+      "name": "Affiliate Marketing",
+      "source": "Marketing",
+      "content": "## Affiliate Marketing\nManaging publisher relationships. Structuring commission models to maximize acquisition while preventing fraud."
+    },
+    {
+      "name": "Quality Assurance (QA)",
+      "source": "Software Engineering",
+      "content": "## QA Testing\nDesigning automated end-to-end test suites (Selenium/Cypress). Managing the bug lifecycle in Jira."
+    },
+    {
+      "name": "Systems Integration",
+      "source": "IT",
+      "content": "## Systems Integration\nMaking legacy software talk to modern APIs. Breaking down data silos across enterprise departments."
+    },
+    {
+      "name": "Public Relations",
+      "source": "Communications",
+      "content": "## Public Relations\nMedia pitching. Thought leadership positioning. Securing earned media in top-tier publications."
+    },
+    {
+      "name": "Typography",
+      "source": "Design",
+      "content": "## Typography\nMastery of kerning, leading, and font pairing to optimize readability and aesthetic hierarchy."
+    },
+    {
+      "name": "Video Editing",
+      "source": "Media",
+      "content": "## Video Editing\nNon-linear editing in Premiere/DaVinci. Color grading, pacing, and narrative assembly."
+    },
+    {
+      "name": "Grant Writing",
+      "source": "Non-Profit",
+      "content": "## Grant Writing\nCrafting compelling narratives to secure funding. Developing Logic Models and precise budget formulations."
+    },
+    {
+      "name": "Risk Management (ERM)",
+      "source": "Corporate Governance",
+      "content": "## Risk Management\nIdentifying operational, financial, and strategic risks. Building mitigation matrices and business continuity plans."
+    },
+    {
+      "name": "Industrial Design",
+      "source": "Design",
+      "content": "## Industrial Design\nMerging ergonomics, aesthetics, and Design for Manufacturing (DFMA) to create physical consumer products."
+    },
+    {
+      "name": "Contract Negotiation",
+      "source": "Business",
+      "content": "## Contract Negotiation\nFinding leverage. Trading concessions strategically to secure favorable terms without torching the relationship."
+    },
+    {
+      "name": "Behavioral Economics",
+      "source": "Economics",
+      "content": "## Behavioral Economics\nApplying psychological insights (nudges, anchoring, loss aversion) to influence consumer or employee behavior."
+    }
+
+]

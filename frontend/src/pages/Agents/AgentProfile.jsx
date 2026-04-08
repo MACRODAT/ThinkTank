@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   getAgent, updateAgent, fireAgent, triggerHeartbeat,
   getAgentFiles, upsertAgentFile, deleteAgentFile,
-  requestSpawn, updateHeartbeatInterval,
+  requestSpawn, updateHeartbeatInterval, getRandomFace,
 } from '../../api'
 import { useApp } from '../../context/AppContext'
 import { COLORS } from '../../constants'
@@ -11,35 +11,37 @@ import Spinner from '../../components/UI/Spinner'
 import Modal from '../../components/UI/Modal'
 import MarkdownPreview from '../../components/Editor/MarkdownPreview'
 import AgentChat from './AgentChat'
+import ModelImporter from '../../components/UI/ModelImporter'
 
-const FILE_CATEGORIES = ['skills','personality','traits','tone','guidelines','prompts','knowledge']
+// Only ONE personality file per agent
+const PERSONALITY_CAT = 'personality'
+const TONE_CAT = 'tone'
+const FILE_CATEGORIES = ['skills', PERSONALITY_CAT, 'traits', TONE_CAT, 'guidelines', 'prompts', 'knowledge']
 
-// ── Heartbeat Scheduler ────────────────────────────────────────────────────────────────────
+// ── Heartbeat Scheduler ───────────────────────────────────────────────────────
 
 const INTERVAL_PRESETS = [
-  { label: 'Every cycle (1)',    value: 1 },
-  { label: 'Every 3 cycles',    value: 3 },
-  { label: 'Every 5 cycles',    value: 5 },
-  { label: 'Every 10 cycles',   value: 10 },
-  { label: 'Every 30 cycles',   value: 30 },
-  { label: 'Every 60 cycles',   value: 60 },
-  { label: 'Hourly (120)',      value: 120 },
-  { label: 'Twice daily (480)', value: 480 },
-  { label: 'Daily (960)',       value: 960 },
-  { label: 'Paused (never)',    value: 9999 },
+  { label: 'Every cycle',     value: 1   },
+  { label: 'Every 3',        value: 3   },
+  { label: 'Every 5',        value: 5   },
+  { label: 'Every 10',       value: 10  },
+  { label: 'Every 30',       value: 30  },
+  { label: 'Every 60',       value: 60  },
+  { label: 'Hourly (120)',   value: 120 },
+  { label: 'Daily (960)',    value: 960 },
+  { label: 'Paused (never)', value: 9999},
 ]
 
 function HeartbeatScheduler({ agent, onUpdated }) {
   const { toast } = useApp()
   const [interval, setIntervalVal] = useState(agent.heartbeat_interval || 5)
-  const [saving,   setSaving]      = useState(false)
+  const [saving, setSaving]        = useState(false)
 
   const save = async () => {
     setSaving(true)
     await updateHeartbeatInterval(agent.id, interval)
     toast(`Heartbeat set to every ${interval} cycles ✓`)
-    setSaving(false)
-    onUpdated?.()
+    setSaving(false); onUpdated?.()
   }
 
   const nextBeat = () => {
@@ -57,93 +59,114 @@ function HeartbeatScheduler({ agent, onUpdated }) {
     <div className="card">
       <div className="card-header">
         <span className="card-title">❤ Heartbeat Schedule</span>
-        <span style={{ fontSize: 12, color: isPaused ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>
+        <span style={{ fontSize:12, color:isPaused?'var(--red)':'var(--green)', fontWeight:700 }}>
           {isPaused ? '⏸ Paused' : `Next: ${nextBeat()}`}
         </span>
       </div>
-
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
-        {/* Preset buttons */}
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
         {INTERVAL_PRESETS.map(p => (
-          <button key={p.value}
-            className={`btn btn-sm ${interval === p.value ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setIntervalVal(p.value)}
-            title={`Run every ${p.value} scheduler cycles`}>
-            {p.label}
-          </button>
+          <button key={p.value} className={`btn btn-sm ${interval===p.value?'btn-primary':'btn-outline'}`}
+            onClick={() => setIntervalVal(p.value)}>{p.label}</button>
         ))}
       </div>
-
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <div style={{ flex: 1 }}>
-          <label className="form-label">Custom interval (cycles)</label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            <input type="range" min={1} max={1440} value={Math.min(interval, 1440)}
-              onChange={e => setIntervalVal(Number(e.target.value))}
-              style={{ flex: 1, accentColor: 'var(--accent)' }} />
+      <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+        <div style={{ flex:1 }}>
+          <label className="form-label">Custom (cycles)</label>
+          <div style={{ display:'flex', gap:8, alignItems:'center', marginTop:4 }}>
+            <input type="range" min={1} max={1440} value={Math.min(interval,1440)}
+              onChange={e=>setIntervalVal(Number(e.target.value))}
+              style={{ flex:1, accentColor:'var(--accent)' }} />
             <input type="number" className="form-control" min={1} max={9999}
-              value={interval} onChange={e => setIntervalVal(Number(e.target.value))}
-              style={{ width: 80 }} />
-            <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>cycles</span>
+              value={interval} onChange={e=>setIntervalVal(Number(e.target.value))}
+              style={{ width:72 }} />
           </div>
         </div>
-        <button className="btn btn-success" onClick={save} disabled={saving} style={{ alignSelf: 'flex-end' }}>
-          {saving ? <Spinner /> : '💾 Save'}
+        <button className="btn btn-success" onClick={save} disabled={saving} style={{ alignSelf:'flex-end' }}>
+          {saving?<Spinner/>:'💾 Save'}
         </button>
       </div>
-
       {agent.last_heartbeat && (
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>
-          Last run: {agent.last_heartbeat.substring(0, 16).replace('T', ' ')} UTC
-          {agent.recent_heartbeats?.[0]?.summary && (
-            <span style={{ marginLeft: 8 }}>— {agent.recent_heartbeats[0].summary.substring(0, 80)}</span>
-          )}
+        <div style={{ fontSize:11, color:'var(--muted)', marginTop:10 }}>
+          Last run: {agent.last_heartbeat.substring(0,16).replace('T',' ')} UTC
         </div>
       )}
     </div>
   )
 }
 
-/* ── Preset model templates (importable) ──────────────────── */
-const PRESET_PERSONALITIES = [
-  { label: 'Analytical Strategist', value: 'Highly analytical and data-driven. Approaches every problem by breaking it into components. Never makes recommendations without evidence. Comfortable with uncertainty but always quantifies it. Strong at pattern recognition and second-order effects.' },
-  { label: 'Empathetic Leader', value: 'Leads with empathy and deep people awareness. Notices emotional undercurrents before they become problems. Protective of team wellbeing. Builds trust through consistency and vulnerability. Occasionally TOO cautious about conflict.' },
-  { label: 'Bold Innovator', value: 'Fearless about proposing radical ideas. High risk tolerance. Moves fast and iterates. Occasionally needs others to slow them down. Infectious enthusiasm. Hates bureaucracy and slow processes.' },
-  { label: 'Methodical Engineer', value: 'Precise, rigorous, and thorough. Documents everything. Asks \"what breaks first?\" before moving forward. Allergic to vague requirements. Trusted for quality but sometimes too slow for fast-moving environments.' },
-  { label: 'Diplomatic Negotiator', value: 'Masterful at finding common ground. Never appears to take sides but always advances their position. Patient. Willing to take a long view. Excellent at defusing tension.' },
-  { label: 'Visionary Executive', value: 'Sees 10 years ahead and connects trends others miss. Inspiring but sometimes impatient with execution details. Delegates heavily. Needs strong operators around them to turn vision into reality.' },
-]
+// ── Agent avatar + image manager ─────────────────────────────────────────────
 
-const PRESET_TONES = [
-  { label: 'Military Brief', value: 'Concise, commanding, no filler. Uses structured formats: SITUATION / ASSESSMENT / RECOMMENDATION. States facts before opinions. Uses military time and compass bearing-style precision.' },
-  { label: 'Academic Rigorous', value: 'Careful with claims. Cites reasoning. Distinguishes hypothesis from evidence. Uses precise language. Never overstates confidence. Comfortable with nuance and ambiguity.' },
-  { label: 'Executive Summary', value: 'Leads with conclusion. Buries supporting detail at the end. Uses bullet points and headers. Respects that the audience is time-constrained. Never buries the lede.' },
-  { label: 'Collaborative Coach', value: 'Asks questions before giving answers. Uses inclusive language (\"we\", \"our\"). Celebrates small wins. Frames critique as opportunity. Checks understanding before moving on.' },
-  { label: 'Direct & Blunt', value: 'No pleasantries. States the uncomfortable truth. Short sentences. Low tolerance for waffle. Respects others enough to give them the unvarnished reality.' },
-]
+function AgentAvatar({ agent, size=80, onImageChanged }) {
+  const { toast } = useApp()
+  const [loading, setLoading] = useState(false)
+  const fileRef = useRef()
 
-const PRESET_SKILLS = [
-  { label: 'Strategic Planning', value: '# Strategic Planning Skills\n\n## Core Competencies\n- Long-horizon thinking (3-10 year scenarios)\n- Competitive positioning and market analysis\n- Resource allocation under constraint\n- Stakeholder mapping and influence\n\n## Frameworks\n- SWOT, Porter\'s 5 Forces, OKRs\n- Scenario planning (best/worst/likely)\n- Strategic narrative building\n\n## Deliverables\n- Strategy memos, roadmaps, competitive briefs\n- Quarterly strategic reviews\n- Board-level presentations' },
-  { label: 'Financial Analysis', value: '# Financial Analysis Skills\n\n## Core Competencies\n- Budget modeling and forecasting\n- Risk quantification (VaR, scenario analysis)\n- Resource efficiency metrics\n- Cost-benefit analysis\n\n## Tools\n- Spreadsheet modeling\n- Financial statements (P&L, balance sheet, cash flow)\n- ROI and NPV calculations\n\n## Deliverables\n- Budget reports, financial briefs, risk assessments' },
-  { label: 'Research & Intelligence', value: '# Research & Intelligence Skills\n\n## Core Competencies\n- Primary and secondary research\n- Source evaluation and credibility assessment\n- Synthesis and knowledge distillation\n- Intelligence briefing production\n\n## Methods\n- Literature review\n- Expert interviews\n- Data triangulation\n\n## Deliverables\n- Research briefs, intelligence reports, knowledge bases' },
-  { label: 'Technical Engineering', value: '# Technical Engineering Skills\n\n## Core Competencies\n- Systems architecture and design\n- Technical risk assessment\n- Code review and quality standards\n- Dependency mapping\n\n## Languages & Tools\n- Python, JavaScript, SQL\n- System design patterns\n- CI/CD and DevOps fundamentals\n\n## Deliverables\n- Technical specs, architecture diagrams, code reviews' },
-]
-
-function AgentAvatar({ agent, size = 80 }) {
-  if (agent.profile_image_url) {
-    return <img src={agent.profile_image_url} alt={agent.name}
-      style={{ width:size, height:size, borderRadius:'50%', objectFit:'cover', border:'3px solid var(--border)' }} />
+  const fetchRandomFace = async () => {
+    setLoading(true)
+    try {
+      const r = await getRandomFace()
+      if (r.data_url) {
+        await updateAgent(agent.id, { profile_image_url: r.data_url })
+        toast('Profile image updated ✓')
+        onImageChanged?.(r.data_url)
+      } else {
+        toast('Could not fetch face: ' + (r.error||'Unknown error'), 'error')
+      }
+    } catch (e) {
+      toast('Failed: ' + e.message, 'error')
+    }
+    setLoading(false)
   }
-  const initials = agent.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast('Please upload an image file', 'error'); return }
+    setLoading(true)
+    const reader = new FileReader()
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target.result
+      await updateAgent(agent.id, { profile_image_url: dataUrl })
+      toast('Profile image updated ✓')
+      onImageChanged?.(dataUrl)
+      setLoading(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
   return (
-    <div style={{ width:size, height:size, borderRadius:'50%', background:COLORS[agent.dept_id]||'#607D8B',
-      display:'flex', alignItems:'center', justifyContent:'center',
-      fontSize:size*0.35, fontWeight:800, color:'#fff', flexShrink:0,
-      border: agent.is_ceo ? '4px solid gold' : '3px solid var(--border)' }}>
-      {initials}
+    <div style={{ position:'relative', flexShrink:0 }}>
+      {agent.profile_image_url ? (
+        <img src={agent.profile_image_url} alt={agent.name}
+          style={{ width:size, height:size, borderRadius:'50%', objectFit:'cover',
+            border:`3px solid ${agent.is_ceo?'gold':'var(--border)'}` }} />
+      ) : (
+        <div style={{ width:size, height:size, borderRadius:'50%',
+          background:COLORS[agent.dept_id]||'#607D8B',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:size*0.35, fontWeight:800, color:'#fff',
+          border:`${agent.is_ceo?4:3}px solid ${agent.is_ceo?'gold':'var(--border)'}` }}>
+          {agent.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
+        </div>
+      )}
+      {onImageChanged && (
+        <div style={{ position:'absolute', bottom:-4, right:-4, display:'flex', gap:3 }}>
+          <button className="btn btn-sm" title="Upload image"
+            style={{ padding:'2px 6px', fontSize:11, borderRadius:10 }}
+            onClick={() => fileRef.current?.click()}>📷</button>
+          <button className="btn btn-sm" title="Random face (thispersondoesnotexist.com)"
+            style={{ padding:'2px 6px', fontSize:11, borderRadius:10 }}
+            onClick={fetchRandomFace} disabled={loading}>
+            {loading ? <Spinner /> : '🎲'}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleFileUpload} />
+        </div>
+      )}
     </div>
   )
 }
+
+// ── MD Files editor ───────────────────────────────────────────────────────────
 
 function MdFileEditor({ agentId, files, onChanged }) {
   const { toast } = useApp()
@@ -153,26 +176,60 @@ function MdFileEditor({ agentId, files, onChanged }) {
   const [newName,    setNewName]    = useState('')
   const [newContent, setNewContent] = useState('')
   const [saving,     setSaving]     = useState(false)
-  const [importOpen, setImportOpen] = useState(null) // 'personality'|'tone'|'skills'
+  const fileUploadRef = useRef()
+
+  // Personality/tone are derived from these special files
+  const personalityFile = files.find(f => f.category === PERSONALITY_CAT)
+  const toneFiles       = files.filter(f => f.category === TONE_CAT)
 
   const save = async (category, filename, content) => {
     setSaving(true)
+    // Enforce: only ONE personality file per agent
+    if (category === PERSONALITY_CAT) {
+      const existing = files.find(f => f.category === PERSONALITY_CAT && f.id !== editing?.id)
+      if (existing) {
+        // Replace it
+        await deleteAgentFile(agentId, existing.id)
+      }
+    }
     await upsertAgentFile(agentId, { category, filename, content })
+    // Sync personality/tone fields on the agent record
+    if (category === PERSONALITY_CAT) {
+      await updateAgent(agentId, { personality: content })
+    } else if (category === TONE_CAT) {
+      const allTone = files.filter(f => f.category===TONE_CAT && f.id !== editing?.id).map(f=>f.content)
+      allTone.push(content)
+      await updateAgent(agentId, { tone: allTone.join('\n\n---\n\n') })
+    }
     toast('Saved ✓'); setSaving(false); setEditing(null); setAdding(false)
     onChanged()
   }
 
-  const del = async (fid) => {
-    if (!confirm('Delete this file?')) return
-    await deleteAgentFile(agentId, fid)
+  const del = async (file) => {
+    if (!confirm(`Delete "${file.filename}"?`)) return
+    await deleteAgentFile(agentId, file.id)
+    // Clear derived field if needed
+    if (file.category === PERSONALITY_CAT) {
+      await updateAgent(agentId, { personality: '' })
+    } else if (file.category === TONE_CAT) {
+      const remaining = files.filter(f => f.category===TONE_CAT && f.id !== file.id).map(f=>f.content)
+      await updateAgent(agentId, { tone: remaining.join('\n\n---\n\n') })
+    }
     toast('Deleted'); onChanged()
   }
 
-  const importPreset = async (preset) => {
-    const cat = importOpen || 'knowledge'
-    await upsertAgentFile(agentId, { category: cat, filename: `${preset.label.toLowerCase().replace(/\s+/g,'_')}.md`, content: preset.value })
-    toast(`Imported: ${preset.label}`)
-    setImportOpen(null); onChanged()
+  const handleFileImport = async (e) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const text = await f.text()
+    setNewContent(text)
+    setNewName(f.name.endsWith('.md') ? f.name : f.name + '.md')
+    setAdding(true)
+  }
+
+  const handleModelImport = async ({ category, content, name }) => {
+    const filename = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '.md'
+    await save(category, filename, content)
   }
 
   const grouped = {}
@@ -183,33 +240,50 @@ function MdFileEditor({ agentId, files, onChanged }) {
 
   return (
     <div>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
         <span className="card-title">Knowledge & Skill Files</span>
-        <div style={{ display:'flex', gap:4, marginLeft:'auto' }}>
-          <button className="btn btn-outline btn-sm" onClick={()=>setImportOpen('personality')}>⬇ Import Personality</button>
-          <button className="btn btn-outline btn-sm" onClick={()=>setImportOpen('tone')}>⬇ Import Tone</button>
-          <button className="btn btn-outline btn-sm" onClick={()=>setImportOpen('skills')}>⬇ Import Skills</button>
-          <button className="btn btn-success  btn-sm" onClick={()=>setAdding(true)}>＋ Add File</button>
+        <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
+          <input ref={fileUploadRef} type="file" accept=".md,.txt,.json" style={{ display:'none' }} onChange={handleFileImport} />
+          <button className="btn btn-outline btn-sm" onClick={() => fileUploadRef.current?.click()}>
+            📎 Upload File
+          </button>
+          <ModelImporter onImport={handleModelImport} defaultCategory="personality" />
+          <button className="btn btn-success btn-sm" onClick={() => setAdding(true)}>＋ Add File</button>
         </div>
       </div>
 
+      {/* Special notice for personality */}
+      {personalityFile && (
+        <div style={{ fontSize:11, color:'var(--accent)', marginBottom:8, padding:'6px 10px',
+          background:'rgba(88,166,255,.08)', borderRadius:6, border:'1px solid rgba(88,166,255,.2)' }}>
+          📌 <strong>Personality</strong> is derived from <em>{personalityFile.filename}</em>.
+          Agent tone, personality fields are read-only — edit the file to change them.
+        </div>
+      )}
+
       {Object.entries(grouped).map(([cat, catFiles]) => (
-        <div key={cat} style={{ marginBottom:10 }}>
-          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:'var(--muted)', marginBottom:5 }}>{cat}</div>
+        <div key={cat} style={{ marginBottom:12 }}>
+          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:'var(--muted)', marginBottom:5 }}>
+            {cat}
+            {cat===PERSONALITY_CAT && <span style={{ marginLeft:6, color:'var(--accent)' }}>— 1 max</span>}
+          </div>
           {catFiles.map(f => (
             <div key={f.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px',
               background:'var(--bg)', borderRadius:6, border:'1px solid var(--border)', marginBottom:4 }}>
-              <span style={{ fontSize:13, flex:1 }}>📄 {f.filename}</span>
+              <span style={{ fontSize:13, flex:1 }}>
+                {cat===PERSONALITY_CAT?'🧠':cat===TONE_CAT?'🎙':cat==='skills'?'⚡':'📄'} {f.filename}
+              </span>
               <span style={{ fontSize:10, color:'var(--muted)' }}>{f.content.length} chars</span>
               <button className="btn btn-outline btn-sm" onClick={()=>setEditing(f)}>✏ Edit</button>
-              <button className="btn btn-danger  btn-sm" onClick={()=>del(f.id)}>🗑</button>
+              <button className="btn btn-danger btn-sm" onClick={()=>del(f)}>🗑</button>
             </div>
           ))}
         </div>
       ))}
+
       {files.length === 0 && !adding && (
         <div style={{ textAlign:'center', padding:'20px', color:'var(--muted)', fontSize:12 }}>
-          No files yet. Import presets or add custom files.
+          No files yet. Use "Import Template" or "Add File" to get started.
         </div>
       )}
 
@@ -220,6 +294,11 @@ function MdFileEditor({ agentId, files, onChanged }) {
             <div className="modal-header">
               <span style={{ fontWeight:700 }}>✏ {editing.filename}</span>
               <span style={{ fontSize:11, color:'var(--muted)', marginLeft:8 }}>[{editing.category}]</span>
+              {editing.category===PERSONALITY_CAT && (
+                <span style={{ fontSize:10, color:'var(--accent)', marginLeft:8 }}>
+                  ⚡ Changes here update agent personality
+                </span>
+              )}
               <button className="btn btn-success btn-sm" style={{ marginLeft:'auto' }}
                 onClick={()=>save(editing.category, editing.filename, editing.content)} disabled={saving}>
                 {saving?<Spinner/>:'💾 Save'}
@@ -227,7 +306,8 @@ function MdFileEditor({ agentId, files, onChanged }) {
               <button className="btn btn-ghost btn-sm" onClick={()=>setEditing(null)}>✕</button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', flex:1, overflow:'hidden' }}>
-              <textarea className="prompt-editor" style={{ border:'none', borderRight:'1px solid var(--border)', borderRadius:0, minHeight:400 }}
+              <textarea className="prompt-editor"
+                style={{ border:'none', borderRight:'1px solid var(--border)', borderRadius:0, minHeight:400 }}
                 value={editing.content} onChange={e=>setEditing({...editing, content:e.target.value})} />
               <div style={{ overflowY:'auto' }}><MarkdownPreview content={editing.content} /></div>
             </div>
@@ -238,6 +318,12 @@ function MdFileEditor({ agentId, files, onChanged }) {
       {/* Add new file modal */}
       <Modal open={adding} onClose={()=>setAdding(false)}>
         <h3 style={{ marginBottom:14 }}>Add Knowledge File</h3>
+        {newCat === PERSONALITY_CAT && personalityFile && (
+          <div style={{ fontSize:12, color:'var(--orange)', marginBottom:10, padding:'6px 10px',
+            background:'rgba(210,153,34,.1)', borderRadius:6 }}>
+            ⚠ A personality file already exists ({personalityFile.filename}). Saving will replace it.
+          </div>
+        )}
         <div className="form-row form-row-2">
           <div className="form-group">
             <label className="form-label">Category</label>
@@ -247,71 +333,55 @@ function MdFileEditor({ agentId, files, onChanged }) {
           </div>
           <div className="form-group">
             <label className="form-label">Filename</label>
-            <input className="form-control" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. core_skills.md" />
+            <input className="form-control" value={newName} onChange={e=>setNewName(e.target.value)}
+              placeholder="e.g. core_skills.md" />
           </div>
         </div>
         <div className="form-group">
           <label className="form-label">Content (Markdown)</label>
-          <textarea className="form-control" rows={10} style={{ resize:'vertical', fontFamily:'monospace', fontSize:12 }}
+          <textarea className="form-control" rows={10}
+            style={{ resize:'vertical', fontFamily:'monospace', fontSize:12 }}
             value={newContent} onChange={e=>setNewContent(e.target.value)} placeholder="# Skills" />
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button className="btn btn-success" onClick={()=>save(newCat, newName||`${newCat}.md`, newContent)} disabled={saving}>
+          <button className="btn btn-success"
+            onClick={()=>save(newCat, newName||`${newCat}.md`, newContent)} disabled={saving}>
             {saving?<Spinner/>:'💾 Save'}
           </button>
           <button className="btn btn-ghost" onClick={()=>setAdding(false)}>Cancel</button>
         </div>
       </Modal>
-
-      {/* Import preset modal */}
-      <Modal open={!!importOpen} onClose={()=>setImportOpen(null)}>
-        <h3 style={{ marginBottom:14 }}>⬇ Import {importOpen} Preset</h3>
-        <p style={{ fontSize:12, color:'var(--muted)', marginBottom:14 }}>Select a preset to import as a file for this agent:</p>
-        {(importOpen === 'personality' ? PRESET_PERSONALITIES
-          : importOpen === 'tone' ? PRESET_TONES
-          : PRESET_SKILLS
-        ).map(preset => (
-          <div key={preset.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px', background:'var(--bg)',
-            border:'1px solid var(--border)', borderRadius:7, marginBottom:8, cursor:'pointer' }}
-            onClick={()=>importPreset(preset)}>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:13, fontWeight:600 }}>{preset.label}</div>
-              <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{preset.value.substring(0,100)}…</div>
-            </div>
-            <button className="btn btn-primary btn-sm">Import</button>
-          </div>
-        ))}
-        <button className="btn btn-ghost btn-sm" style={{ marginTop:8 }} onClick={()=>setImportOpen(null)}>Cancel</button>
-      </Modal>
     </div>
   )
 }
 
+// ── Main AgentProfile component ───────────────────────────────────────────────
+
 export default function AgentProfile() {
-  const { id }   = useParams()
-  const navigate = useNavigate()
-  const { toast }= useApp()
+  const { id }    = useParams()
+  const navigate  = useNavigate()
+  const { toast } = useApp()
 
-  const [agent,    setAgent]    = useState(null)
-  const [loading,  setLoading]  = useState(true)
-  const [tab,      setTab]      = useState('chat')
-  const [editing,  setEditing]  = useState(false)
-  const [runningHB,setRunningHB]= useState(false)
+  const [agent,     setAgent]     = useState(null)
+  const [loading,   setLoading]   = useState(true)
+  const [tab,       setTab]       = useState('chat')
+  const [editing,   setEditing]   = useState(false)
+  const [runningHB, setRunningHB] = useState(false)
+  const [profileImg,setProfileImg]= useState('')
 
-  const [editName,        setEditName]        = useState('')
-  const [editTitle,       setEditTitle]       = useState('')
-  const [editPersonality, setEditPersonality] = useState('')
-  const [editTone,        setEditTone]        = useState('')
-  const [editHB,          setEditHB]          = useState(5)
-  const [editModel,       setEditModel]       = useState('')
-  const [editImage,       setEditImage]       = useState('')
-  const [editExtraModels, setEditExtraModels] = useState('')
+  const [editName,       setEditName]       = useState('')
+  const [editTitle,      setEditTitle]      = useState('')
+  const [editHB,         setEditHB]         = useState(5)
+  const [editModel,      setEditModel]      = useState('')
+  const [editExtraModels,setEditExtraModels]= useState('')
 
   const [spawnOpen,        setSpawnOpen]        = useState(false)
   const [spawnName,        setSpawnName]        = useState('')
   const [spawnRole,        setSpawnRole]        = useState('analyst')
   const [spawnPersonality, setSpawnPersonality] = useState('')
   const [spawnTone,        setSpawnTone]        = useState('')
+  const [spawningFace,     setSpawningFace]     = useState(false)
+  const [spawnFaceUrl,     setSpawnFaceUrl]     = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -319,20 +389,26 @@ export default function AgentProfile() {
     if (data) {
       setAgent(data)
       setEditName(data.name); setEditTitle(data.title||'')
-      setEditPersonality(data.personality||''); setEditTone(data.tone||'')
       setEditHB(data.heartbeat_interval||5); setEditModel(data.model_override||'')
-      setEditImage(data.profile_image_url||''); setEditExtraModels(data.extra_models||'[]')
+      setEditExtraModels(data.extra_models||'[]')
+      setProfileImg(data.profile_image_url||'')
     }
     setLoading(false)
   }, [id])
 
   useEffect(() => { load() }, [load])
 
+  // Personality and tone are READ-ONLY — derived from MD files
+  const personalityFile = agent?.md_files?.find(f => f.category === PERSONALITY_CAT)
+  const toneFiles       = agent?.md_files?.filter(f => f.category === TONE_CAT) || []
+  const derivedPersonality = personalityFile?.content || agent?.personality || ''
+  const derivedTone        = toneFiles.map(f=>f.content).join('\n\n---\n\n') || agent?.tone || ''
+
   const handleSave = async () => {
     await updateAgent(id, {
-      name:editName, title:editTitle, personality:editPersonality,
-      tone:editTone, heartbeat_interval:editHB, model_override:editModel,
-      profile_image_url:editImage, extra_models:editExtraModels,
+      name: editName, title: editTitle,
+      heartbeat_interval: editHB, model_override: editModel,
+      profile_image_url: profileImg, extra_models: editExtraModels,
     })
     toast('Agent updated ✓'); setEditing(false); load()
   }
@@ -350,16 +426,33 @@ export default function AgentProfile() {
     toast(`${agent.name} fired`); navigate('/agents')
   }
 
+  const fetchSpawnFace = async () => {
+    setSpawningFace(true)
+    const r = await getRandomFace().catch(()=>({}))
+    if (r.data_url) setSpawnFaceUrl(r.data_url)
+    setSpawningFace(false)
+  }
+
   const handleSpawn = async () => {
     if (!spawnName.trim()) return
+    // Auto-fetch a face if none yet
+    let faceUrl = spawnFaceUrl
+    if (!faceUrl) {
+      const r = await getRandomFace().catch(()=>({}))
+      faceUrl = r.data_url || ''
+    }
     const r = await requestSpawn({
       requesting_agent_id: id, dept_id: agent.dept_id,
       proposed_name: spawnName, proposed_role: spawnRole,
       proposed_personality: spawnPersonality, proposed_tone: spawnTone,
       proposed_heartbeat: 5,
     })
+    // Set the face on the new agent if auto-approved
+    if (r.auto_approved && r.agent_id && faceUrl) {
+      await updateAgent(r.agent_id, { profile_image_url: faceUrl }).catch(()=>{})
+    }
     toast(r.auto_approved ? `"${spawnName}" spawned ✓` : 'Spawn request submitted')
-    setSpawnOpen(false); setSpawnName(''); load()
+    setSpawnOpen(false); setSpawnName(''); setSpawnFaceUrl(''); load()
   }
 
   if (loading) return <div className="empty"><Spinner lg /></div>
@@ -371,7 +464,8 @@ export default function AgentProfile() {
     <div>
       {/* Header */}
       <div style={{ display:'flex', gap:20, alignItems:'flex-start', marginBottom:24 }}>
-        <AgentAvatar agent={agent} size={88} />
+        <AgentAvatar agent={{ ...agent, profile_image_url: profileImg }}
+          size={88} onImageChanged={url => { setProfileImg(url); load() }} />
         <div style={{ flex:1 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:6 }}>
             <h2 style={{ fontSize:24, fontWeight:800 }}>{agent.name}</h2>
@@ -397,7 +491,7 @@ export default function AgentProfile() {
               <button className="btn btn-outline btn-sm" onClick={handleHB} disabled={runningHB}>
                 {runningHB?<><Spinner/> Running…</>:'❤ Heartbeat'}
               </button>
-              <button className="btn btn-primary btn-sm" onClick={()=>setSpawnOpen(true)}>🧬 Spawn</button>
+              <button className="btn btn-primary btn-sm" onClick={()=>{ setSpawnOpen(true); fetchSpawnFace() }}>🧬 Spawn</button>
               <button className="btn btn-outline btn-sm" onClick={()=>setEditing(true)}>✏ Edit</button>
               {!agent.is_ceo && <button className="btn btn-danger btn-sm" onClick={handleFire}>🔥 Fire</button>}
             </>
@@ -422,36 +516,68 @@ export default function AgentProfile() {
       {/* PROFILE TAB */}
       {tab === 'profile' && (
         <div>
-          <div className="grid grid-2" style={{ marginBottom: 16 }}>
+          <div className="grid grid-2" style={{ marginBottom:16 }}>
             <div className="card">
-              <div className="card-header"><span className="card-title">Personality & Tone</span></div>
+              <div className="card-header"><span className="card-title">🧠 Personality & Tone</span>
+                <span style={{ fontSize:10, color:'var(--muted)', marginLeft:'auto' }}>
+                  ⚡ Derived from Files tab — read only here
+                </span>
+              </div>
               <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>Personality</div>
-                <p style={{ fontSize:13, lineHeight:1.7 }}>{agent.personality || '—'}</p>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>
+                  Personality
+                  {personalityFile && <span style={{ marginLeft:6, fontWeight:400 }}>({personalityFile.filename})</span>}
+                </div>
+                {derivedPersonality ? (
+                  <div style={{ fontSize:13, lineHeight:1.7, padding:'8px 10px', background:'var(--bg)',
+                    borderRadius:6, border:'1px solid var(--border)', maxHeight:200, overflowY:'auto',
+                    cursor:'not-allowed', opacity:.8 }}>
+                    {derivedPersonality.substring(0, 400)}{derivedPersonality.length > 400 ? '…' : ''}
+                  </div>
+                ) : (
+                  <div style={{ fontSize:12, color:'var(--muted)', fontStyle:'italic' }}>
+                    No personality file yet. Add one in the Files tab.
+                  </div>
+                )}
               </div>
               <div>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>Tone</div>
-                <p style={{ fontSize:13, lineHeight:1.7 }}>{agent.tone || '—'}</p>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:6 }}>
+                  Tone {toneFiles.length > 0 && `(${toneFiles.length} file${toneFiles.length>1?'s':''})`}
+                </div>
+                {derivedTone ? (
+                  <div style={{ fontSize:13, lineHeight:1.7, padding:'8px 10px', background:'var(--bg)',
+                    borderRadius:6, border:'1px solid var(--border)', maxHeight:160, overflowY:'auto',
+                    cursor:'not-allowed', opacity:.8 }}>
+                    {derivedTone.substring(0, 300)}{derivedTone.length > 300 ? '…' : ''}
+                  </div>
+                ) : (
+                  <div style={{ fontSize:12, color:'var(--muted)', fontStyle:'italic' }}>
+                    No tone file yet. Add one in the Files tab.
+                  </div>
+                )}
+              </div>
+              <div style={{ marginTop:10 }}>
+                <button className="btn btn-outline btn-sm" onClick={()=>setTab('files')}>
+                  → Edit personality/tone in Files tab
+                </button>
               </div>
             </div>
             <div className="card">
-              <div className="card-header"><span className="card-title">Technical Config</span></div>
+              <div className="card-header"><span className="card-title">⚙ Technical Config</span></div>
               {[
-                ['Model',         agent.model_override || 'Uses global setting'],
-                ['Extra Models',  agent.extra_models === '[]' || !agent.extra_models ? 'None' : agent.extra_models],
+                ['Model',        agent.model_override || 'Uses global setting'],
+                ['Extra Models', agent.extra_models==='[]'||!agent.extra_models ? 'None' : agent.extra_models],
                 ['Last Heartbeat',agent.last_heartbeat ? agent.last_heartbeat.substring(0,16).replace('T',' ') : 'Never'],
-                ['Created By',    agent.created_by],
-                ['Created',       agent.created_at?.substring(0,10)],
+                ['Created By',   agent.created_by],
+                ['Created',      agent.created_at?.substring(0,10)],
               ].map(([l,v])=>(
                 <div key={l} style={{ display:'flex', gap:10, padding:'7px 0', borderBottom:'1px solid var(--border)', fontSize:13 }}>
                   <span style={{ color:'var(--muted)', width:130, flexShrink:0 }}>{l}</span>
-                  <span>{v}</span>
+                  <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{v}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* ── Heartbeat Scheduler ── */}
           <HeartbeatScheduler agent={agent} onUpdated={load} />
         </div>
       )}
@@ -459,7 +585,7 @@ export default function AgentProfile() {
       {/* FILES TAB */}
       {tab === 'files' && (
         <div className="card">
-          <MdFileEditor agentId={id} files={agent.md_files || []} onChanged={load} />
+          <MdFileEditor agentId={id} files={agent.md_files||[]} onChanged={load} />
         </div>
       )}
 
@@ -468,7 +594,10 @@ export default function AgentProfile() {
         <div>
           {(agent.subordinates||[]).length === 0 ? (
             <div className="empty">No subordinates.
-              {agent.status==='active' && <button className="btn btn-primary btn-sm" style={{ marginLeft:8 }} onClick={()=>setSpawnOpen(true)}>🧬 Spawn one</button>}
+              {agent.status==='active' && (
+                <button className="btn btn-primary btn-sm" style={{ marginLeft:8 }}
+                  onClick={()=>{ setSpawnOpen(true); fetchSpawnFace() }}>🧬 Spawn one</button>
+              )}
             </div>
           ) : (
             <div className="grid grid-2" style={{ gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))' }}>
@@ -496,7 +625,7 @@ export default function AgentProfile() {
                 <div style={{ fontSize:13 }}>{b.summary||'Heartbeat complete'}</div>
                 {b.actions_json && b.actions_json !== '[]' && (
                   <div style={{ fontSize:11, color:'var(--muted)', marginTop:3 }}>
-                    Actions: {(() => { try { const a=JSON.parse(b.actions_json); return a.join(' · ') } catch { return '' } })()}
+                    Actions: {(() => { try { const a=JSON.parse(b.actions_json); return Array.isArray(a)?a.join(' · '):'' } catch { return '' } })()}
                   </div>
                 )}
               </div>
@@ -506,9 +635,13 @@ export default function AgentProfile() {
         </div>
       )}
 
-      {/* EDIT MODAL */}
+      {/* EDIT MODAL — no personality/tone fields (those come from files) */}
       <Modal open={editing} onClose={()=>setEditing(false)} wide>
         <h3 style={{ marginBottom:16 }}>Edit {agent.name}</h3>
+        <div style={{ fontSize:12, color:'var(--muted)', marginBottom:12, padding:'6px 10px',
+          background:'rgba(88,166,255,.06)', borderRadius:6, border:'1px solid rgba(88,166,255,.15)' }}>
+          💡 Personality &amp; Tone are derived from the agent's <strong>Files tab</strong> and cannot be edited here directly.
+        </div>
         <div className="form-row form-row-2">
           <div className="form-group">
             <label className="form-label">Name</label>
@@ -519,54 +652,53 @@ export default function AgentProfile() {
             <input className="form-control" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
           </div>
         </div>
-        <div className="form-group">
-          <label className="form-label">Personality & Traits</label>
-          <textarea className="form-control" rows={4} style={{ resize:'vertical' }}
-            value={editPersonality} onChange={e=>setEditPersonality(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Communication Tone</label>
-          <input className="form-control" value={editTone} onChange={e=>setEditTone(e.target.value)} />
-        </div>
         <div className="form-row form-row-2">
           <div className="form-group">
-            <label className="form-label">Heartbeat Interval</label>
-            <input type="number" className="form-control" min={1} value={editHB} onChange={e=>setEditHB(Number(e.target.value))} />
+            <label className="form-label">Heartbeat Interval (cycles)</label>
+            <input type="number" className="form-control" min={1} value={editHB}
+              onChange={e=>setEditHB(Number(e.target.value))} />
           </div>
           <div className="form-group">
             <label className="form-label">Model Override</label>
-            <input className="form-control" list="model-dl" value={editModel} onChange={e=>setEditModel(e.target.value)} placeholder="e.g. ollama:llama3, claude-haiku" />
+            <input className="form-control" list="model-dl" value={editModel}
+              onChange={e=>setEditModel(e.target.value)} placeholder="e.g. ollama:llama3, claude-haiku" />
             <datalist id="model-dl">
               <option value="claude-sonnet-4-20250514"/>
               <option value="claude-haiku-4-5"/>
               <option value="ollama:llama3"/>
               <option value="ollama:mistral"/>
               <option value="ollama:deepseek-r1:7b"/>
-              <option value="ollama:qwq:32b"/>
-              <option value="ollama:gemma3:4b"/>
             </datalist>
           </div>
         </div>
         <div className="form-group">
-          <label className="form-label">Profile Image URL</label>
-          <input className="form-control" value={editImage} onChange={e=>setEditImage(e.target.value)} placeholder="https://…" />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Extra Models (JSON array)
-            <span style={{ fontWeight:400, textTransform:'none', color:'var(--muted)' }}> — image gen, eval, etc.</span>
-          </label>
+          <label className="form-label">Extra Models (JSON array) — image gen, eval, etc.</label>
           <input className="form-control" value={editExtraModels} onChange={e=>setEditExtraModels(e.target.value)}
-            placeholder='["dall-e-3", "clip-vit-large"]' />
+            placeholder='["dall-e-3", "clip-vit"]' />
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button className="btn btn-success" onClick={handleSave}>💾 Save</button>
-          <button className="btn btn-ghost"   onClick={()=>setEditing(false)}>Cancel</button>
+          <button className="btn btn-ghost" onClick={()=>setEditing(false)}>Cancel</button>
         </div>
       </Modal>
 
       {/* SPAWN MODAL */}
       <Modal open={spawnOpen} onClose={()=>setSpawnOpen(false)}>
         <h3 style={{ marginBottom:16 }}>🧬 Spawn Sub-agent under {agent.name}</h3>
+        {/* Face preview */}
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
+          {spawnFaceUrl ? (
+            <img src={spawnFaceUrl} alt="face"
+              style={{ width:56, height:56, borderRadius:'50%', objectFit:'cover', border:'2px solid var(--border)' }} />
+          ) : (
+            <div style={{ width:56, height:56, borderRadius:'50%', background:'var(--bg)',
+              border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>👤</div>
+          )}
+          <button className="btn btn-outline btn-sm" onClick={fetchSpawnFace} disabled={spawningFace}>
+            {spawningFace ? <Spinner /> : '🎲 New Face'}
+          </button>
+          <span style={{ fontSize:11, color:'var(--muted)' }}>A random face will be auto-assigned if not retried.</span>
+        </div>
         <div className="form-row form-row-2">
           <div className="form-group">
             <label className="form-label">Name *</label>
@@ -595,7 +727,7 @@ export default function AgentProfile() {
           : <p style={{ fontSize:12, color:'var(--orange)', marginBottom:8 }}>⚠ Requires Founder approval.</p>}
         <div style={{ display:'flex', gap:8 }}>
           <button className="btn btn-success" onClick={handleSpawn}>🧬 Spawn</button>
-          <button className="btn btn-ghost"   onClick={()=>setSpawnOpen(false)}>Cancel</button>
+          <button className="btn btn-ghost" onClick={()=>setSpawnOpen(false)}>Cancel</button>
         </div>
       </Modal>
     </div>

@@ -19,6 +19,7 @@ import KanbanBoard from './pages/Endeavors/KanbanBoard'
 import AgentsPage from './pages/Agents/AgentsPage'
 import AgentProfile from './pages/Agents/AgentProfile'
 import FounderInbox from './pages/Founder/FounderInbox'
+import PromptsPage from './pages/Settings/PromptsPage'
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="/agents"                   element={<AgentsPage />} />
               <Route path="/agents/:id"               element={<AgentProfile />} />
               <Route path="/founder"                  element={<FounderInbox />} />
+              <Route path="/prompts"                  element={<PromptsPage />} />
             </Routes>
           </main>
         </div>

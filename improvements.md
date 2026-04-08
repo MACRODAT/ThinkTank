@@ -191,3 +191,34 @@ Getting error: table agent_heartbeat_log has no column named actions_json. Examp
 	- Make sure all agents research topic before create a new topic
 	- Make sure all agents include topic in all mail, drafts, strategies...
 	- Feel free to add feature / apply ideas as you see fit
+
+
+
+Continue. Also include:
+
+
+- const PRESET_LIBRARY in ModelImporter.jsx should feature external *.json folder.
+- The agent's personnality, tone, skills should be infered from the files in his profile. When the agent needs to process ANY content, first start by importing ALL the files in his profile. Whenever a file is added (personnality, skill, Tone), redefine the agent's profile folder (his personnality, tone) from the files used. These inputs SHOULD be read only.
+- Only ONE personnality is allowed for each agent.
+- Allow importing images and files for any agent. Also allow changing agent profile image !
+- Whenever any agent is spawned, get his profile image from "https://thispersondoesnotexist.com/". Also, add button to retry for another image (same source).  
+- Allow viewing / editing ALL prompts of Centrale, including system prompts, agent prompts, etc. Explain thoroughly what each does.
+- Agents keep creating new endeavours when they already exist (Ensure they modify existing endeavors, even if they are approved, an endeavor can be modified with new phases and tasks constantly).  
+
+
+- show all edits to drafts / strategies / mail
+- When I reply to anything in my founder inbox, such as CEO mails, spawn requests, and draft endeavor, prioritize a reply from the concerned agent (ideally immediate, if many, put a queue)/
+- random profile image does not work (Could not fetch face: not found)
+- Example of erroneous conversation:
+  -- ME: Hire a mechanical engineer
+  -- Agent: calls create_draft (instead of hire_agent)
+  ⚠ Existing draft found: 'Weekly Status — Engineering & Science — 2026-04-08' (id: xx, status: approved). Use update_draft instead.
+Use correct tools !
+- When any draft / note / strategy has any modifications or status modifications (such as approved), ensure you log who and when he approved it (better add remarks for approval!)
+- Agents should prioritize update_draft
+- Projects just keep getting created (in few hours I get dozens of projects on similar topics). Same for endeavors
+- Add more settings (fonts, theme, etc.)
+
+Continue and add:
+- ALL prompts (such as lines 269 in agent_runner.py) should be available for edit. No hard coded prompts !!
+- add web_search tool for agents, its configuration in settings with a strong reliable framework
