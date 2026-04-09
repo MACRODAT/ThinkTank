@@ -1660,3 +1660,266 @@ kbd {
 }
 .prompt-section-header:hover { background: rgba(88,166,255,.06); }
 .founder-mail-item.unread { background:rgba(248,81,73,.04); border-left:3px solid var(--red); }
+/* ══════════════════════════════════════════════════════════════
+   THEMES — applied via data-theme on <html>
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Default: GitHub Dark (base) ── already in :root above ── */
+
+[data-theme="dark"] {
+  --bg:      #0d1117; --surface: #161b22; --border:  #21262d;
+  --text:    #e6edf3; --muted:   #8b949e; --accent:  #58a6ff;
+  --green:   #3fb950; --orange:  #d29922; --red:     #f85149;
+}
+
+[data-theme="midnight"] {
+  --bg:      #060608; --surface: #0e0e14; --border:  #1a1a2e;
+  --text:    #e2e2f0; --muted:   #7878a0; --accent:  #7c6af7;
+  --green:   #32e0a0; --orange:  #f0a500; --red:     #f05070;
+}
+
+[data-theme="forest"] {
+  --bg:      #0d1a0f; --surface: #132018; --border:  #1e3326;
+  --text:    #d4e8d0; --muted:   #6a9070; --accent:  #4caf80;
+  --green:   #56d870; --orange:  #c8b040; --red:     #e05050;
+}
+
+[data-theme="amber"] {
+  --bg:      #1a1200; --surface: #221800; --border:  #332600;
+  --text:    #f0e0b0; --muted:   #907850; --accent:  #f0a020;
+  --green:   #80c050; --orange:  #f08020; --red:     #e04040;
+}
+
+[data-theme="rose"] {
+  --bg:      #1a0d14; --surface: #22101c; --border:  #331826;
+  --text:    #f0d8e8; --muted:   #907080; --accent:  #e060a0;
+  --green:   #60d080; --orange:  #e08030; --red:     #f04050;
+}
+
+[data-theme="ocean"] {
+  --bg:      #060e1a; --surface: #0c1828; --border:  #142236;
+  --text:    #c8dff5; --muted:   #5878a0; --accent:  #38b0e8;
+  --green:   #30d0a0; --orange:  #e09020; --red:     #e84060;
+}
+
+[data-theme="light"] {
+  --bg:      #f6f8fa; --surface: #ffffff; --border:  #d0d7de;
+  --text:    #1f2328; --muted:   #636c76; --accent:  #0969da;
+  --green:   #1a7f37; --orange:  #9a6700; --red:     #cf222e;
+}
+
+/* Smooth theme transitions */
+*, *::before, *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.18s ease;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════════════ */
+
+/* Page entrance */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* Apply entrance animation to main page content */
+.main-area > div {
+  animation: fadeInUp 0.22s ease both;
+}
+
+/* Cards animate in */
+.card {
+  animation: fadeInUp 0.2s ease both;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* Modal entrance */
+.modal-box {
+  animation: scaleIn 0.18s ease both;
+}
+.modal-overlay {
+  animation: fadeIn 0.15s ease both;
+}
+
+/* Nav item hover lift */
+.nav-item {
+  transition: background 0.15s, color 0.15s, border-left-color 0.15s, transform 0.12s;
+}
+.nav-item:hover {
+  transform: translateX(2px);
+}
+
+/* Button press effect */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Draft/mail items slide in */
+.draft-item, .mail-item {
+  transition: background 0.12s, transform 0.12s;
+}
+.draft-item:hover {
+  transform: translateX(2px);
+  background: rgba(88,166,255,0.04);
+}
+
+/* Founder mail item */
+.founder-mail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s;
+}
+.founder-mail-item:hover {
+  background: rgba(255,255,255,0.03);
+  transform: translateX(2px);
+}
+.founder-mail-item.unread {
+  background: rgba(88,166,255,0.04);
+}
+.founder-mail-item:last-child { border-bottom: none; }
+
+/* Heartbeat pulse for active agents */
+@keyframes heartbeat {
+  0%   { box-shadow: 0 0 0 0 rgba(63,185,80,0.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(63,185,80,0); }
+  100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); }
+}
+.agent-active-pulse {
+  animation: heartbeat 2s ease infinite;
+}
+
+/* Spinner variants */
+.spinner-accent { border-top-color: var(--accent); }
+.spinner-green  { border-top-color: var(--green); }
+
+/* Loading shimmer skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+}
+
+/* Toast improvements */
+.toast {
+  animation: slideInLeft 0.22s ease both;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* Tab underline slide animation */
+.tab {
+  position: relative;
+}
+.tab::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 50%; right: 50%;
+  height: 2px;
+  background: var(--accent);
+  transition: left 0.18s ease, right 0.18s ease;
+  border-radius: 2px 2px 0 0;
+}
+.tab.active::after { left: 0; right: 0; }
+
+/* Military mail display */
+.military-body {
+  background: #0a0e0a;
+  border: 1px solid #1a3a1a;
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-family: 'Courier New', 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.9;
+  letter-spacing: 0.03em;
+}
+
+/* Retrigger button */
+.retrigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 5px;
+  border: 1px solid var(--orange);
+  background: rgba(210,153,34,.1);
+  color: var(--orange);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.retrigger-btn:hover { background: var(--orange); color: #000; }
+
+/* Theme switcher pills */
+.theme-pill {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.theme-pill:hover { transform: scale(1.2); }
+.theme-pill.active { border-color: var(--text); transform: scale(1.15); }
+
+/* Extension card */
+.ext-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  animation: fadeInUp 0.2s ease both;
+}
+.ext-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ext-card.installed { border-color: var(--green); }
+
+/* Server status dot */
+.server-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.server-dot.stopping { background: var(--red); }
+
+/* Scroll reveal — subtle fade for list items */
+@keyframes rowReveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card > *:nth-child(1) { animation-delay: 0.02s; }
+.card > *:nth-child(2) { animation-delay: 0.04s; }
+.card > *:nth-child(3) { animation-delay: 0.06s; }
+.card > *:nth-child(4) { animation-delay: 0.08s; }

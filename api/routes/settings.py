@@ -226,13 +226,20 @@ async def claude_models():
     ]}
 
 
+@router.get("/web-search-providers")
+async def get_search_providers():
+    from core.web_search import get_providers_info
+    return get_providers_info()
+
+
 @router.post("/test-search")
 async def test_search(
-    provider: str = Body(...),
-    api_key:  str = Body(""),
+    provider:  str = Body(...),
+    api_key:   str = Body(""),
+    searx_url: str = Body(""),
 ):
     from core.web_search import test_search as _test
-    return await _test(provider, api_key)
+    return await _test(provider, api_key, searx_url)
 
 
 @router.get("/thinking-log")

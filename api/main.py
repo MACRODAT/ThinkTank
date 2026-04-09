@@ -21,6 +21,7 @@ from api.routes.settings    import router as settings_router
 from api.routes.endeavors   import router as endeavors_router
 from api.routes.agents      import router as agents_router
 from api.routes.topics      import router as topics_router
+from api.routes.extensions  import router as extensions_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,6 +72,7 @@ app.include_router(settings_router)
 app.include_router(endeavors_router)
 app.include_router(agents_router)
 app.include_router(topics_router)
+app.include_router(extensions_router)
 
 
 # ── Presets: serve JSON preset files from data/presets/ ──────────────────────
@@ -105,25 +107,27 @@ import httpx
 
 @app.get("/api/agents/random-face")
 async def random_face():
-    """Proxy a face from thispersondoesnotexist.com and return as base64."""
-    import base64, random
-    FACE_URLS = [
-        "https://thispersondoesnotexist.com/",
-        "https://i.pravatar.cc/200?img=" + str(random.randint(1, 70)),
+    """Return a random face image as base64. Tries multiple free sources."""
+    import base64, random as _random
+    SOURCES = [
+        # pravatar - real-looking faces, very reliable
+        f"https://i.pravatar.cc/256?img={_random.randint(1, 70)}",
+        # DiceBear - stylized avatars, always works
+        f"https://api.dicebear.com/7.x/personas/jpg?seed={_random.randint(1,9999)}&size=256",
+        f"https://api.dicebear.com/7.x/adventurer-neutral/jpg?seed={_random.randint(1,9999)}&size=256",
     ]
-    for url in FACE_URLS:
+    for url in _random.sample(SOURCES, len(SOURCES)):
         try:
-            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
                 resp = await client.get(url, headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Accept": "image/webp,image/jpeg,image/*",
-                    "Referer": "https://thispersondoesnotexist.com/",
+                    "User-Agent": "Mozilla/5.0 (compatible; ThinkTank/1.0)"
                 })
-            if resp.status_code == 200 and len(resp.content) > 1000:
+            if resp.status_code == 200 and len(resp.content) > 500:
                 b64 = base64.b64encode(resp.content).decode()
                 ct  = resp.headers.get("content-type", "image/jpeg").split(";")[0]
                 return {"data_url": f"data:{ct};base64,{b64}"}
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Face source {url} failed: {e}")
             continue
     return {"error": "All face sources failed — check internet connection"}
 
@@ -131,6 +135,17 @@ async def random_face():
 @app.get("/")
 async def index():
     return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.post("/api/server/stop")
+async def stop_server():
+    """Gracefully stop the server process."""
+    import asyncio, os, signal
+    async def _shutdown():
+        await asyncio.sleep(0.5)
+        os.kill(os.getpid(), signal.SIGTERM)
+    asyncio.create_task(_shutdown())
+    return {"ok": True, "message": "Server shutting down…"}
 
 
 @app.get("/{full_path:path}")

@@ -103,8 +103,9 @@ export const deleteDeptFile      = (did,fid)=>req(`/deptfiles/${did}/${fid}`,{ m
 // Founder
 export const getFounderStats     = ()      => req('/founder/stats')
 export const getFounderInbox     = (p={})  => { const qs=new URLSearchParams(p).toString(); return req(`/founder/inbox${qs?'?'+qs:''}`) }
-export const markFounderRead     = (id)    => req(`/founder/inbox/${id}/read`,  { method:'POST' })
-export const replyFounderMail    = (id,b)  => req(`/founder/inbox/${id}/reply`, { method:'POST', body:b })
+export const markFounderRead     = (id)    => req(`/founder/inbox/${id}/read`,      { method:'POST' })
+export const replyFounderMail    = (id,b)  => req(`/founder/inbox/${id}/reply`,     { method:'POST', body:b })
+export const retriggerFounderMail= (id)    => req(`/founder/inbox/${id}/retrigger`, { method:'POST' })
 
 // Spawn requests
 export const getSpawnRequests    = (p={})  => { const qs=new URLSearchParams(p).toString(); return req(`/spawn-requests${qs?'?'+qs:''}`) }

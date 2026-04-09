@@ -222,3 +222,44 @@ Use correct tools !
 Continue and add:
 - ALL prompts (such as lines 269 in agent_runner.py) should be available for edit. No hard coded prompts !!
 - add web_search tool for agents, its configuration in settings with a strong reliable framework
+
+
+- VERY important: when an agent calls a tool, it does not resume its response
+  Ideally:
+  agent -> calls tool -> response -> agent -> continues response based on tool 
+- add button in founder inbox for every item which i replied to to retrigger agent to handle that item. Normally, once an item has been reviewed by me, the concerned agent trigger. Sometimes there is an error, so i want a separate list / queue for items i dealt with (ensure they ARE processed and add an override button).
+- Ensure agents only use web_search if really necessary. Add more search providers with free API (even with limits), ensure you switch to other search engines which work (or select one randomly from a check box list, best!).
+- add themes and animations
+- Could not fetch: not found when selecting random face for agent
+ 
+
+ Continue and:
+- Use per points basis:
+    -- Each department is allocated each week 200 points at Friday, 10 PM.
+    -- Each project costs 50 points if created by CEO. Double if not CEO!
+    -- Each draft strategy costs 100 points if created by CEO. Double if not CEO!
+    -- Each draft Memo costs 20 points.
+    -- Each revision / edit / revisit on older draft awards 5 points on drafts.
+    -- Each message to Founder costs 35 points.
+    -- Each rejected endeavor costs 120 points if created by CEO. 180 points by any other agent.
+    -- Each approved endeavor awards 50 points if created by CEO. No points by any other agent.
+    -- Each web search costs 20 points.
+    -- Each mail from CEO to other department's CEO costs 1 point from sender which is awarded to the other department as a fee.
+    -- Each mail from CEO to other department's agent (not ceo) costs 2 point from sender which is awarded to the other department as a fee.
+    -- Each mail from agent to other department's agent costs 1 point from sender which is awarded to the other department as a fee.
+    -- Each mail from agent to other department's CEO costs 10 point from sender which is awarded to the other department as a fee.
+    -- Each task added to existing endeavor awards 10 points if approved. It costs 5 points if not.
+    -- Department's CEO may ask Founder for more points.
+    -- Department's CEO may ask other departments for points. They are deducted from provider and given to the one who asks if awarder approves.
+    -- Founder may award / deduct points as he feels.
+    -- CEOs will be reprimanded if they have no points before week end.
+    -- For each inter-department mail (meaning action between agents of same department), no points are deducted.
+-- CEOs may get fired by the following:
+    -- Another agent of my choosing is promoted CEO.
+    -- A new CEO is spawned.
+    -- CEO may leave permanently or may be lowered to agent.
+- when specifying custom model for agent, add full possibility to select ollama/claude AND model name from dropbox.
+- mail viewer in Founder inbox should render markdown instead of viewing text 
+- add font settings
+- add web_search metrics (who calls it and when).
+- allow for file dropping, for example my expenditures spreadsheet. Each file dropped is treated and mined for data.

@@ -1,6 +1,6 @@
 """api/routes/agents.py — Full agent management + chat API."""
 from __future__ import annotations
-import uuid, json
+import uuid, json, re
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
@@ -181,76 +181,83 @@ async def chat_with_agent(
     aid:     str,
     message: str = Body(..., embed=True),
 ):
-    """Send a message to an agent and get a response. Uses JSON body: {"message": "..."}"""
+    """Send a message to an agent. Implements agentic tool loop: tool call → result → agent continues."""
+    import re as _re
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        # Load agent
         async with db.execute("""
             SELECT a.*, p.name as parent_name
-            FROM agents a LEFT JOIN agents p ON a.parent_agent_id=p.id
-            WHERE a.id=?
+            FROM agents a LEFT JOIN agents p ON a.parent_agent_id=p.id WHERE a.id=?
         """, (aid,)) as cur:
             agent = _row(await cur.fetchone())
-        if not agent:
-            return {"error": "Agent not found"}
-
-        # Load agent files for context
-        async with db.execute(
-            "SELECT category, filename, content FROM agent_md_files WHERE agent_id=?", (aid,)
-        ) as cur:
-            files = _rows(await cur.fetchall())
-
-        # Load dept files
-        async with db.execute(
-            "SELECT category, filename, content FROM dept_md_files WHERE dept_id=?",
-            (agent["dept_id"],)
-        ) as cur:
-            dept_files = _rows(await cur.fetchall())
-
-        # Load recent chat history for this agent (last 20 turns)
+        if not agent: return {"error": "Agent not found"}
+        async with db.execute("SELECT category, filename, content FROM agent_md_files WHERE agent_id=?", (aid,)) as cur:
+            agent["md_files"] = _rows(await cur.fetchall())
+        async with db.execute("SELECT category, filename, content FROM dept_md_files WHERE dept_id=?", (agent["dept_id"],)) as cur:
+            agent["dept_files"] = _rows(await cur.fetchall())
         async with db.execute("""
             SELECT role, content FROM agent_chat_history
             WHERE agent_id=? ORDER BY created_at DESC LIMIT 20
         """, (aid,)) as cur:
             history_rows = list(reversed(_rows(await cur.fetchall())))
 
-    # Build system prompt
-    from core.agent_runner import _build_system_prompt
-    agent["md_files"]   = files
-    agent["dept_files"] = dept_files
+    from core.agent_runner import _build_system_prompt, execute_chat_tool
+    from api.routes.settings import _load as _load_settings
+    settings = await _load_settings()
+    system_prompt = _build_system_prompt(agent, chat_mode=True, settings=settings)
 
-    system_prompt = _build_system_prompt(agent, chat_mode=True)
-
-    # Build conversation messages
-    messages = []
-    for h in history_rows:
-        messages.append({"role": h["role"], "content": h["content"]})
+    # Build initial messages
+    messages = [{"role": h["role"], "content": h["content"]} for h in history_rows]
     messages.append({"role": "user", "content": message})
 
-    # Call AI
     from core.ai_router import route_chat
-    result = await route_chat(
-        agent_id=aid,
-        system_prompt=system_prompt,
-        messages=messages,
-    )
-    raw_reply = result.get("text", "…")
+    tool_call_re = re.compile(r'\[TOOL_CALL:\s*(\{.*?\})\s*\]', re.DOTALL)
+    all_tool_log = []
+    final_reply  = "…"
 
-    # Process tool calls embedded in reply
-    from core.agent_runner import process_chat_with_tools
-    reply, tool_log = await process_chat_with_tools(agent, raw_reply)
+    # ── Agentic tool loop (max 6 rounds) ────────────────────────────────────
+    for round_num in range(6):
+        result    = await route_chat(agent_id=aid, system_prompt=system_prompt, messages=messages)
+        raw_reply = result.get("text", "…")
 
-    # Persist both turns
+        # Find all tool calls in this response
+        tool_matches = list(tool_call_re.finditer(raw_reply))
+        if not tool_matches:
+            final_reply = raw_reply
+            break  # Clean response with no tool calls → done
+
+        # Execute every tool call and replace inline
+        processed = raw_reply
+        offset = 0
+        for match in tool_matches:
+            try:    call_data = json.loads(match.group(1))
+            except: continue
+            tool   = call_data.get("tool", "")
+            params = call_data.get("params", {})
+            tool_result = await execute_chat_tool(tool, params, agent)
+            all_tool_log.append({"tool": tool, "params": params, "result": tool_result[:400]})
+            result_block = f"[TOOL:{tool}]\n{tool_result}\n[/TOOL]"
+            start = match.start() + offset
+            end   = match.end()   + offset
+            processed = processed[:start] + result_block + processed[end:]
+            offset += len(result_block) - (match.end() - match.start())
+
+        # Add agent's response-with-tool-results as assistant turn, then ask to continue
+        messages.append({"role": "assistant", "content": processed})
+        messages.append({"role": "user",
+                         "content": "Tool results are shown above. Please continue your response."})
+        final_reply = processed  # fallback if we hit max rounds
+    # ────────────────────────────────────────────────────────────────────────
+
+    # Persist the conversation (original user message + final assistant reply)
     async with aiosqlite.connect(DB_PATH) as db:
-        for role, content in [("user", message), ("assistant", reply)]:
+        for role, content in [("user", message), ("assistant", final_reply)]:
             cid = str(uuid.uuid4())
-            await db.execute("""
-                INSERT INTO agent_chat_history (id, agent_id, role, content)
-                VALUES (?,?,?,?)
-            """, (cid, aid, role, content))
+            await db.execute("INSERT INTO agent_chat_history (id, agent_id, role, content) VALUES (?,?,?,?)",
+                             (cid, aid, role, content))
         await db.commit()
 
-    return {"reply": reply, "agent_name": agent["name"], "tool_calls": tool_log}
+    return {"reply": final_reply, "agent_name": agent["name"], "tool_calls": all_tool_log}
 
 
 @router.delete("/api/agents/{aid}/chat")
@@ -406,18 +413,32 @@ async def reply_founder_mail(mid: str, reply_body: str = Body(..., embed=True)):
             "UPDATE founder_mail SET status='replied', replied_at=?, reply_body=? WHERE id=?",
             (ts, reply_body, mid)
         )
-        # Get the agent who sent this mail so we can trigger their heartbeat
         async with db.execute("SELECT from_agent_id FROM founder_mail WHERE id=?", (mid,)) as cur:
             fm = _row(await cur.fetchone())
         await db.commit()
-
-    # Fire off an immediate heartbeat for the originating agent in the background
     if fm and fm.get("from_agent_id"):
         import asyncio
         from core.agent_runner import run_agent_heartbeat as _hb
         asyncio.create_task(_hb(fm["from_agent_id"]))
-
     return {"ok": True}
+
+
+@router.post("/api/founder/inbox/{mid}/retrigger")
+async def retrigger_founder_mail(mid: str):
+    """Force immediate heartbeat for the agent who sent this message, regardless of status."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT from_agent_id, subject FROM founder_mail WHERE id=?", (mid,)) as cur:
+            fm = _row(await cur.fetchone())
+    if not fm:
+        return {"error": "Not found"}
+    agent_id = fm.get("from_agent_id")
+    if not agent_id:
+        return {"error": "No agent associated"}
+    import asyncio
+    from core.agent_runner import run_agent_heartbeat as _hb
+    asyncio.create_task(_hb(agent_id))
+    return {"ok": True, "agent_id": agent_id}
 
 
 @router.post("/api/founder/mail")

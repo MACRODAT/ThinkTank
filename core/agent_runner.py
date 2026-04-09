@@ -1,14 +1,4 @@
-"""core/agent_runner.py
-Heartbeat engine + chat tool-use handler.
-Prompt order:
-  1. global prepend
-  2. dept system prompt
-  3. agent personality/tone
-  4. agent MD files
-  5. pending drafts destined for agent
-  6. dept mail
-  7. global append
-"""
+"""core/agent_runner.py — Heartbeat engine + chat tool-use handler."""
 from __future__ import annotations
 import uuid, json, logging, re
 from datetime import datetime, date
@@ -19,52 +9,35 @@ from core.ai_router import route
 
 logger = logging.getLogger(__name__)
 
-# ── One-time migration guard ──────────────────────────────────────────────────
 _heartbeat_migration_done = False
 
 async def _ensure_heartbeat_columns():
-    """Add any missing columns to agent_heartbeat_log (runs once per process)."""
     global _heartbeat_migration_done
     if _heartbeat_migration_done:
         return
     async with aiosqlite.connect(DB_PATH) as db:
-        for sql in [
-            "ALTER TABLE agent_heartbeat_log ADD COLUMN actions_json TEXT DEFAULT '[]'",
-        ]:
-            try:
-                await db.execute(sql)
-            except Exception:
-                pass
+        for sql in ["ALTER TABLE agent_heartbeat_log ADD COLUMN actions_json TEXT DEFAULT '[]'"]:
+            try: await db.execute(sql)
+            except: pass
         await db.commit()
     _heartbeat_migration_done = True
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Settings helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def _get_global_prompts() -> tuple[str, str]:
-    """Return (prepend, append) from app_settings."""
-    try:
-        from api.routes.settings import _load
-        s = await _load()
-        return s.get("custom_prompt_prepend", ""), s.get("custom_prompt_append", "")
-    except Exception:
-        return "", ""
-
+# ── Settings ──────────────────────────────────────────────────────────────────
 
 async def _get_all_settings() -> dict:
-    """Return full settings dict (cached-friendly single call)."""
     try:
         from api.routes.settings import _load
         return await _load()
     except Exception:
         return {}
 
+async def _get_global_prompts() -> tuple[str, str]:
+    s = await _get_all_settings()
+    return s.get("custom_prompt_prepend", ""), s.get("custom_prompt_append", "")
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Context loader
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Context loader ────────────────────────────────────────────────────────────
 
 async def _get_agent_context(agent_id: str) -> dict:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -75,54 +48,42 @@ async def _get_agent_context(agent_id: str) -> dict:
             return {}
         async with db.execute(
             "SELECT category, filename, content FROM agent_md_files WHERE agent_id=? ORDER BY category, filename",
-            (agent_id,)
-        ) as cur:
+            (agent_id,)) as cur:
             agent["md_files"] = [dict(r) for r in await cur.fetchall()]
         async with db.execute(
             "SELECT category, filename, content FROM dept_md_files WHERE dept_id=? ORDER BY category, filename",
-            (agent["dept_id"],)
-        ) as cur:
+            (agent["dept_id"],)) as cur:
             agent["dept_files"] = [dict(r) for r in await cur.fetchall()]
-        # dept system prompt
-        async with db.execute(
-            "SELECT system_prompt FROM departments WHERE id=?", (agent["dept_id"],)
-        ) as cur:
+        async with db.execute("SELECT system_prompt FROM departments WHERE id=?", (agent["dept_id"],)) as cur:
             row = await cur.fetchone()
             agent["dept_system_prompt"] = row["system_prompt"] if row else ""
     return agent
 
 
 async def _get_hierarchy(agent_id: str) -> dict:
-    """Return direct superior and direct reports."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM agents WHERE id=?", (agent_id,)
-        ) as cur:
+        async with db.execute("SELECT * FROM agents WHERE id=?", (agent_id,)) as cur:
             me = dict(await cur.fetchone() or {})
         superior = None
         if me.get("parent_agent_id"):
             async with db.execute(
                 "SELECT id,name,role,title,dept_id,is_ceo FROM agents WHERE id=?",
-                (me["parent_agent_id"],)
-            ) as cur:
+                (me["parent_agent_id"],)) as cur:
                 row = await cur.fetchone()
                 superior = dict(row) if row else None
         async with db.execute(
             "SELECT id,name,role,title,dept_id FROM agents WHERE parent_agent_id=? AND status='active'",
-            (agent_id,)
-        ) as cur:
+            (agent_id,)) as cur:
             reports = [dict(r) for r in await cur.fetchall()]
     return {"superior": superior, "reports": reports}
 
 
 async def _can_act_on(acting_agent_id: str, target_agent_id: str) -> bool:
-    """True if acting agent is in the target's chain of command (superior or same dept CEO)."""
     if acting_agent_id == target_agent_id:
         return True
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        # Walk up the chain from target
         current = target_agent_id
         for _ in range(10):
             async with db.execute("SELECT parent_agent_id, dept_id FROM agents WHERE id=?", (current,)) as cur:
@@ -132,10 +93,7 @@ async def _can_act_on(acting_agent_id: str, target_agent_id: str) -> bool:
             if row["parent_agent_id"] == acting_agent_id:
                 return True
             current = row["parent_agent_id"]
-        # Allow if acting agent is CEO of same dept
-        async with db.execute(
-            "SELECT a.is_ceo, a.dept_id FROM agents a WHERE a.id=?", (acting_agent_id,)
-        ) as cur:
+        async with db.execute("SELECT is_ceo, dept_id FROM agents WHERE id=?", (acting_agent_id,)) as cur:
             me = await cur.fetchone()
         async with db.execute("SELECT dept_id FROM agents WHERE id=?", (target_agent_id,)) as cur:
             tgt = await cur.fetchone()
@@ -144,65 +102,57 @@ async def _can_act_on(acting_agent_id: str, target_agent_id: str) -> bool:
     return False
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Tool specification  (loaded from DB, with hardcoded fallback defaults)
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Prompt specs ──────────────────────────────────────────────────────────────
 
 _TOOLS_TABLE = """
-## Available Tools
-
-Emit tool calls anywhere in your response:
-  [TOOL_CALL: {"tool": "tool_name", "params": {...}}]
-
-Results come back as [TOOL:name]...[/TOOL].
-
-| Tool | Key Params | What it does |
-|------|-----------|-------------|
-| list_dept_files | dept_id | List all MD files for a department |
+| Tool | Params | Description |
+|------|--------|-------------|
+| list_dept_files | dept_id | List dept MD files |
 | read_dept_file | dept_id, filename | Read a dept MD file |
-| write_dept_file | dept_id, filename, category, content | Create/update a dept file |
-| read_agent_file | agent_id?, filename | Read one of your skill/personality files |
-| write_agent_file | agent_id?, category, filename, content | Update your own files |
-| list_drafts | dept_id?, status | List drafts (status: pending/revised/approved/all) |
-| search_drafts | dept_id?, query | Search drafts by title keyword |
-| read_draft | draft_id | Read full content of a draft |
-| create_draft | dept_id?, title, content, draft_type, priority | Create new draft (dedup check built-in) |
-| update_draft | draft_id, content, title?, append? | Update/append to existing draft |
-| change_draft_status | draft_id, status, notes?, reviewed_by? | Set draft status: revised/approved/rejected/pending/archived |
-| revert_draft_to_pending | draft_id | Pull an approved draft back to pending |
-| delegate_draft | draft_id, to_agent_id, notes? | Assign a draft to a reporting agent |
-| request_superior_review | draft_id, notes? | Send a draft up to your direct superior |
+| write_dept_file | dept_id, filename, category, content | Create/update dept file |
+| read_agent_file | agent_id?, filename | Read your own file |
+| write_agent_file | agent_id?, category, filename, content | Update your own file |
+| list_drafts | dept_id?, status | List drafts (pending/revised/approved/all) |
+| search_drafts | dept_id?, query | Search drafts by keyword |
+| read_draft | draft_id | Read full draft content |
+| create_draft | dept_id?, title, content, draft_type, priority | Create draft (dedup check) |
+| update_draft | draft_id, content, title?, append? | Update/append draft |
+| change_draft_status | draft_id, status, notes?, reviewed_by? | Set status |
+| revert_draft_to_pending | draft_id | Revert approved draft |
+| delegate_draft | draft_id, to_agent_id, notes? | Assign to subordinate |
+| request_superior_review | draft_id, notes? | Send to superior |
 | list_endeavors | dept_id? | List active endeavors |
-| search_endeavors | name_query | Search existing endeavors BEFORE proposing new ones |
-| create_endeavor_proposal | name, description, phases | Submit draft endeavor for Founder review |
-| list_topics | | List all known topics |
-| search_topics | query | Search topics by keyword BEFORE creating new ones |
-| create_topic | name, description, color? | Create a new topic if none match |
-| assign_topic | item_type, item_id, topic_id | Assign topic to draft/mail/project |
-| get_mail | dept_id? | Show unarchived mail sent to your department |
-| delete_mail | mail_id | Archive a mail |
-| send_mail | to_dept, subject, body, priority? | Send mail to another department |
-| forward_mail | mail_id, to_dept, note? | Forward an existing mail |
-| send_to_founder | subject, body, priority?, requires_decision? | Escalate directly to Founder AND your CEO |
-| write_to_founder | subject, body, priority? | Urgent message directly to Founder and CEO |
-| get_superior | | Get your direct superior agent info |
-| get_subordinates | | Get agents reporting directly to you |
-| hire_agent | name, role, title, personality, tone, reason | (CEO only) Directly hire a new agent |
-| list_agents | dept_id? | List agents in a department |
-| update_project | project_name, status?, priority? | Update a project's status or priority |
-| web_search | query, max_results? | Search the web for current information (if enabled) |
+| search_endeavors | name_query | Search endeavors before proposing |
+| create_endeavor_proposal | name, description, phases | Submit endeavor for review |
+| list_topics | | List all topics |
+| search_topics | query | Search topics |
+| create_topic | name, description, color? | Create topic |
+| assign_topic | item_type, item_id, topic_id | Assign topic to item |
+| get_mail | dept_id? | Show unarchived mail |
+| delete_mail | mail_id | Archive mail |
+| send_mail | to_dept, subject, body, priority? | Send mail |
+| forward_mail | mail_id, to_dept, note? | Forward mail |
+| send_to_founder | subject, body, priority?, requires_decision? | Escalate to Founder+CEO |
+| write_to_founder | subject, body, priority? | Urgent message to Founder |
+| get_superior | | Get direct superior info |
+| get_subordinates | | Get direct reports |
+| hire_agent | name, role, title, personality, tone, reason | CEO only: hire agent |
+| list_agents | dept_id? | List agents |
+| update_project | project_name, status?, priority? | Update project |
+| web_search | query, max_results? | Search the web (requires web search enabled in Settings) |
 
-**HIERARCHY RULE:** You may only take actions on agents that report to you (directly or transitively).
+**HIERARCHY:** Only act on agents reporting to you.
+**RIGHT TOOL:** hire_agent to hire. create_draft for documents only. web_search for research.
 """
 
-_HEARTBEAT_ACTIONS = """
-Actions:
+_HEARTBEAT_ACTIONS_TEMPLATE = """
+Actions (JSON "actions" array):
 { "type": "send_mail", "to_dept": "STR", "subject": "...", "body": "...", "priority": "normal" }
 { "type": "send_to_founder", "subject": "...", "body": "...", "priority": "high", "requires_decision": true }
 { "type": "create_draft", "title": "...", "content": "...", "draft_type": "strategy|memo|report|weekly_report", "priority": "normal" }
 { "type": "update_existing_draft", "draft_id": "...", "content": "...", "title": "...", "append": true }
 { "type": "revert_approved_draft", "draft_id": "...", "reason": "..." }
-{ "type": "approve_draft", "draft_id": "...", "notes": "Approval remarks" }
+{ "type": "approve_draft", "draft_id": "...", "notes": "Approval remarks — always required" }
 { "type": "reject_draft", "draft_id": "...", "notes": "Reason" }
 { "type": "request_revision", "draft_id": "...", "notes": "What needs changing" }
 { "type": "create_draft_endeavor", "name": "...", "description": "...", "phases": [{"name":"Phase 1","description":"...","duration_days":14}] }
@@ -212,37 +162,9 @@ Actions:
 { "type": "hire_agent", "name": "...", "role": "analyst", "title": "...", "personality": "...", "tone": "...", "reason": "..." }
 { "type": "fire_agent", "agent_name": "...", "reason": "..." }
 { "type": "invoke_subordinates", "reason": "..." }
-{ "type": "weekly_report", "content": "...", "agent_briefs": [...] }
+{ "type": "weekly_report", "content": "...", "agent_briefs": [] }
 { "type": "log", "message": "..." }
 """
-
-
-def _build_chat_tools_spec(settings: dict) -> str:
-    header = settings.get("prompt_tools_spec_header", "").strip() or (
-        "## Available Tools\n\n"
-        "Emit tool calls anywhere in your response:\n"
-        "  [TOOL_CALL: {\"tool\": \"tool_name\", \"params\": {...}}]\n\n"
-        "Results come back as [TOOL:name]...[/TOOL].\n\n"
-        "Use the correct tool for each task:\n"
-        "- To HIRE someone → use hire_agent, NOT create_draft\n"
-        "- To SEARCH web → use web_search\n"
-        "- To WRITE a document → use create_draft (but check for existing drafts first!)"
-    )
-    return header + "\n" + _TOOLS_TABLE
-
-
-def _build_heartbeat_actions_spec(settings: dict) -> str:
-    rules = settings.get("prompt_heartbeat_rules", "").strip() or (
-        "RULES:\n"
-        "1. MINIMIZE — only act when genuinely needed.\n"
-        "2. STRICT DEDUP — ALWAYS check existing drafts/projects/endeavors before creating.\n"
-        "3. MAIL DISCIPLINE — one mail per recipient per topic.\n"
-        "4. HIERARCHY — only act on personnel reporting to you.\n"
-        "5. REVISED DRAFTS — address them FIRST.\n"
-        "6. RIGHT TOOL — use hire_agent to hire, create_draft for documents, web_search for research.\n"
-        "7. NO DUPLICATE PROJECTS/ENDEAVORS — if one already exists, add to it or update it."
-    )
-    return "## Allowed Heartbeat Actions (JSON with \"actions\" array)\n\n" + rules + "\n" + _HEARTBEAT_ACTIONS
 
 
 def _build_system_prompt(agent: dict, chat_mode: bool = False,
@@ -254,274 +176,112 @@ def _build_system_prompt(agent: dict, chat_mode: bool = False,
     is_ceo  = bool(agent.get("is_ceo"))
     name    = agent.get("name", "Agent")
     title   = agent.get("title") or agent.get("role", "analyst")
+    parts   = []
 
-    parts = []
-
-    # 1. Global prepend
     if prepend.strip():
         parts.append(f"# Global System Context\n{prepend.strip()}\n")
 
-    # 2. Dept system prompt
     dept_prompt = agent.get("dept_system_prompt", "").strip()
     if dept_prompt:
         parts.append(f"# Department System Prompt\n{dept_prompt}\n")
     elif agent.get("dept_files"):
-        parts.append(f"# Department: {dept_id} — Guidelines & Policy")
+        parts.append(f"# Department: {dept_id} Guidelines")
         for f in agent["dept_files"]:
             parts.append(f"\n### [{f['category']}] {f['filename']}\n{f['content']}")
 
-    # 3. Agent identity + personality + tone
     parts.append(f"# You are {name}")
-    parts.append(f"**Role:** {title} | **Department:** {dept_id} | **Level:** {agent.get('hierarchy_level', 3)}")
+    parts.append(f"**Role:** {title} | **Dept:** {dept_id} | **Level:** {agent.get('hierarchy_level', 3)}")
 
     if agent.get("personality"):
         parts.append(f"\n## Personality\n{agent['personality']}")
     if agent.get("tone"):
         parts.append(f"\n## Communication Tone\n{agent['tone']}")
-
-    # 4. Agent MD files
     if agent.get("md_files"):
         parts.append("\n## Your Skills & Knowledge Files")
         for f in agent["md_files"]:
             parts.append(f"\n### [{f['category']}] {f['filename']}\n{f['content']}")
 
-    # 5. CEO / role rules — loaded from DB, editable
     if is_ceo:
-        ceo_prompt = settings.get("prompt_ceo_authority", "").strip()
-        if not ceo_prompt:
-            ceo_prompt = (
-                "## CEO Authority\n\nYou lead your department. Full autonomous authority within mandate.\n\n"
-                "**Independent decisions:** approve/reject drafts, respond to mail, create/edit strategies,\n"
-                "hire/fire agents, delegate to senior agents, update projects, propose draft endeavors.\n\n"
-                "**Escalate to Founder when:** unsure about major decision, cross-dept impact,\n"
-                "resource authority exceeded, critical/urgent situation.\n\n"
-                "**Weekly Report (Monday):** invoke all agents → collect briefs → write and submit one weekly report.\n\n"
-                "**Strict dedup:** NEVER create a new draft/project/endeavor if one already exists. Update it.\n\n"
-                "**Mail discipline:** ONE mail per recipient per topic. Use military format for urgent matters.\n\n"
-                "**Hierarchy:** You may only directly manage agents in your department."
+        rule = settings.get("prompt_ceo_authority", "").strip()
+        if not rule:
+            rule = (
+                "## CEO Authority\nYou lead your department with full autonomous authority.\n\n"
+                "**Decide independently:** approve/reject drafts, respond to mail, create/edit strategies, "
+                "hire/fire agents, delegate, update projects, propose endeavors.\n\n"
+                "**Escalate to Founder:** major cross-dept decisions, exceeded authority, critical situations.\n\n"
+                "**Weekly Report (Monday):** invoke agents, collect briefs, write + submit one report.\n\n"
+                "**DEDUP RULE:** NEVER create a draft/project/endeavor if one already exists. Update it.\n\n"
+                "**Mail:** ONE message per recipient per topic. Military format for urgent.\n\n"
+                "**Hierarchy:** Manage only agents in your department."
             )
-        parts.append("\n" + ceo_prompt)
+        parts.append("\n" + rule)
     else:
-        agent_role = settings.get("prompt_agent_role", "").strip()
-        if not agent_role:
-            agent_role = (
+        rule = settings.get("prompt_agent_role", "").strip()
+        if not rule:
+            rule = (
                 "## Your Role\n"
-                "- Produce drafts within your domain. CHECK for existing drafts first — update them.\n"
-                "- Max ONE mail per topic per recipient. Keep mails short.\n"
-                "- Escalate only genuinely important items to your CEO.\n"
-                "- Only interact with agents that report to you or your direct superior.\n"
-                "- Use hire_agent to hire — never create_draft for that purpose."
+                "- CHECK existing drafts before creating — update them, do NOT duplicate.\n"
+                "- ONE mail per topic per recipient. Keep mails brief.\n"
+                "- Escalate only important items to your CEO.\n"
+                "- Use hire_agent to hire — never create_draft for that purpose.\n"
+                "- Only interact with agents that report to you or your direct superior."
             )
-        parts.append("\n" + agent_role)
+        parts.append("\n" + rule)
 
-    # 6. Tools spec / actions spec
     if chat_mode:
-        parts.append(_build_chat_tools_spec(settings))
-        chat_mode_prompt = settings.get("prompt_chat_mode", "").strip()
-        if not chat_mode_prompt:
-            chat_mode_prompt = (
-                "## Chat Mode\n\n"
-                "You are speaking directly with the Founder. Be direct, in-character, and use your full personality.\n"
-                "When using tools: announce what you're doing, emit [TOOL_CALL: {...}], then reference the result naturally.\n"
-                "You may take real actions during chat (create drafts, send mail, etc.) — the Founder is watching in real time."
+        tools_header = settings.get("prompt_tools_spec_header", "").strip()
+        if not tools_header:
+            tools_header = (
+                "## Available Tools\n\n"
+                "Emit: [TOOL_CALL: {\"tool\": \"name\", \"params\": {...}}]\n"
+                "Results: [TOOL:name]...[/TOOL]\n\n"
+                "Correct tool selection:\n"
+                "- HIRE someone -> hire_agent (NOT create_draft)\n"
+                "- SEARCH web -> web_search\n"
+                "- WRITE document -> create_draft (check for existing first)"
             )
-        parts.append("\n" + chat_mode_prompt)
+        parts.append(tools_header + "\n" + _TOOLS_TABLE)
+        chat_prompt = settings.get("prompt_chat_mode", "").strip()
+        if not chat_prompt:
+            chat_prompt = (
+                "## Chat Mode\nYou are speaking with the Founder directly. Be in-character.\n"
+                "Announce tool use, emit [TOOL_CALL: {...}], reference the result naturally."
+            )
+        parts.append("\n" + chat_prompt)
     else:
-        parts.append(_build_heartbeat_actions_spec(settings))
+        rules = settings.get("prompt_heartbeat_rules", "").strip()
+        if not rules:
+            rules = (
+                "## Heartbeat Rules\n"
+                "1. MINIMIZE - only act when genuinely needed.\n"
+                "2. DEDUP - check existing drafts/projects/endeavors before creating ANY. Update them.\n"
+                "3. MAIL - one mail per recipient per topic.\n"
+                "4. HIERARCHY - only act on personnel reporting to you.\n"
+                "5. REVISED DRAFTS - address them FIRST before anything else.\n"
+                "6. RIGHT TOOL - hire_agent to hire, create_draft for docs, web_search for research.\n"
+                "7. NO DUPES - NEVER create projects/endeavors if similar ones exist in context above."
+            )
+        parts.append(rules + "\n## Allowed Heartbeat Actions\n" + _HEARTBEAT_ACTIONS_TEMPLATE)
 
-    # 7. Global append
     if append.strip():
         parts.append(f"\n# Additional Global Instructions\n{append.strip()}")
 
     return "\n".join(parts)
 
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Tool specification
-# ─────────────────────────────────────────────────────────────────────────────
-
-CHAT_TOOLS_SPEC = """
-## Available Tools
-
-Emit tool calls anywhere in your response:
-  [TOOL_CALL: {"tool": "tool_name", "params": {...}}]
-
-Results come back as [TOOL:name]...[/TOOL].
-
-| Tool | Key Params | What it does |
-|------|-----------|-------------|
-| list_dept_files | dept_id | List all MD files for a department |
-| read_dept_file | dept_id, filename | Read a dept MD file |
-| write_dept_file | dept_id, filename, category, content | Create/update a dept file |
-| read_agent_file | agent_id?, filename | Read one of your skill/personality files |
-| write_agent_file | agent_id?, category, filename, content | Update your own files |
-| list_drafts | dept_id?, status | List drafts (status: pending/revised/approved/all) |
-| search_drafts | dept_id?, query | Search drafts by title keyword |
-| read_draft | draft_id | Read full content of a draft |
-| create_draft | dept_id?, title, content, draft_type, priority | Create new draft (dedup check built-in) |
-| update_draft | draft_id, content, title?, append? | Update/append to existing draft |
-| change_draft_status | draft_id, status, notes?, reviewed_by? | Set draft status: revised/approved/rejected/pending/archived |
-| revert_draft_to_pending | draft_id | Pull an approved draft back to pending for editing |
-| delegate_draft | draft_id, to_agent_id, notes? | Assign a draft to a reporting agent |
-| request_superior_review | draft_id, notes? | Send a draft up to your direct superior for review |
-| list_endeavors | dept_id? | List active endeavors |
-| search_endeavors | name_query | Search existing endeavors BEFORE proposing new ones |
-| create_endeavor_proposal | name, description, phases | Submit draft endeavor for Founder review |
-| list_topics | | List all known topics |
-| search_topics | query | Search topics by keyword BEFORE creating new ones |
-| create_topic | name, description, color? | Create a new topic if none match |
-| assign_topic | item_type, item_id, topic_id | Assign topic to draft/mail/project |
-| get_mail | dept_id? | Show unarchived mail sent to your department |
-| delete_mail | mail_id | Archive a mail (hide unless explicitly requested) |
-| send_mail | to_dept, subject, body, priority? | Send mail to another department |
-| forward_mail | mail_id, to_dept, note? | Forward an existing mail to another department |
-| send_to_founder | subject, body, priority?, requires_decision? | Escalate directly to Founder AND your CEO |
-| write_to_founder | subject, body, priority? | Urgent message directly to Founder and CEO |
-| get_superior | | Get your direct superior agent info |
-| get_subordinates | | Get agents reporting directly to you |
-| hire_agent | name, role, title, personality, tone, reason | (CEO only) Directly hire a new agent |
-| list_agents | dept_id? | List agents in a department |
-| update_project | project_name, status?, priority? | Update a project's status or priority |
-
-**HIERARCHY RULE:** You may only take actions on agents that report to you (directly or transitively). You cannot send mail or create work for agents outside your chain of command.
-"""
-
-HEARTBEAT_ACTIONS_SPEC = """
-## Allowed Heartbeat Actions (JSON with "actions" array)
-
-RULES:
-1. MINIMIZE — only act when genuinely needed.
-2. STRICT DEDUP — ALWAYS search before creating ANY draft, project, OR endeavor. Update/append to existing.
-3. MAIL DISCIPLINE — one mail per recipient per topic. Check recent mail before sending.
-4. HIERARCHY — only act on personnel reporting to you.
-5. REVISED DRAFTS — if you see drafts with REVISION REQUEST notes, address them FIRST.
-6. TOOL SELECTION — use the MOST SPECIFIC action. Use hire_agent to hire people. Use create_draft only for documents.
-   DO NOT use create_draft when hire_agent is the right action.
-   DO NOT create projects or endeavors if similar ones already exist in the context above.
-
-DEDUP (CRITICAL):
-- Drafts: Check "All Dept Drafts" above before creating. Same topic? Use update_existing_draft instead.
-- Projects: NEVER create if a similarly-named project exists. Update it instead.
-- Endeavors: NEVER create if one appears in "Active Endeavors" above. Add phases to existing one.
-
-Actions:
-{ "type": "send_mail", "to_dept": "STR", "subject": "...", "body": "...", "priority": "normal" }
-{ "type": "send_to_founder", "subject": "...", "body": "...", "priority": "high", "requires_decision": true }
-{ "type": "create_draft", "title": "...", "content": "...", "draft_type": "strategy|memo|report|weekly_report", "priority": "normal" }
-{ "type": "update_existing_draft", "draft_id": "...", "content": "...", "title": "...", "append": true }
-{ "type": "revert_approved_draft", "draft_id": "...", "reason": "..." }
-{ "type": "approve_draft", "draft_id": "...", "notes": "..." }
-{ "type": "reject_draft", "draft_id": "...", "notes": "Reason" }
-{ "type": "request_revision", "draft_id": "...", "notes": "What needs changing" }
-{ "type": "create_draft_endeavor", "name": "...", "description": "...", "phases": [{"name":"Phase 1","description":"...","duration_days":14}] }
-{ "type": "update_project", "project_name": "...", "status": "active|completed", "priority": "..." }
-
-**ENDEAVOR RULE:** When your department has a multi-week strategic initiative, ALWAYS propose it as a draft_endeavor with defined phases. Think: is this something we should track as a project? If yes, create a draft_endeavor.
-{ "type": "respond_to_mail", "mail_id": "...", "reply": "...", "important": false }
-{ "type": "archive_mail", "mail_id": "..." }
-{ "type": "hire_agent", "name": "...", "role": "analyst", "title": "...", "personality": "...", "tone": "...", "reason": "..." }
-{ "type": "fire_agent", "agent_name": "...", "reason": "..." }
-{ "type": "invoke_subordinates", "reason": "..." }
-{ "type": "weekly_report", "content": "...", "agent_briefs": [...] }
-{ "type": "log", "message": "..." }
-"""
-
-
-def _build_system_prompt(agent: dict, chat_mode: bool = False,
-                          prepend: str = "", append: str = "") -> str:
-    dept_id = agent.get("dept_id", "")
-    is_ceo  = bool(agent.get("is_ceo"))
-    name    = agent.get("name", "Agent")
-    title   = agent.get("title") or agent.get("role", "analyst")
-
-    parts = []
-
-    # 1. Global prepend
-    if prepend.strip():
-        parts.append(f"# Global System Context\n{prepend.strip()}\n")
-
-    # 2. Dept system prompt
-    dept_prompt = agent.get("dept_system_prompt", "").strip()
-    if dept_prompt:
-        parts.append(f"# Department System Prompt\n{dept_prompt}\n")
-    elif agent.get("dept_files"):
-        parts.append(f"# Department: {dept_id} — Guidelines & Policy")
-        for f in agent["dept_files"]:
-            parts.append(f"\n### [{f['category']}] {f['filename']}\n{f['content']}")
-
-    # 3. Agent identity + personality + tone
-    parts.append(f"# You are {name}")
-    parts.append(f"**Role:** {title} | **Department:** {dept_id} | **Level:** {agent.get('hierarchy_level', 3)}")
-
-    if agent.get("personality"):
-        parts.append(f"\n## Personality\n{agent['personality']}")
-    if agent.get("tone"):
-        parts.append(f"\n## Communication Tone\n{agent['tone']}")
-
-    # 4. Agent MD files
-    if agent.get("md_files"):
-        parts.append("\n## Your Skills & Knowledge Files")
-        for f in agent["md_files"]:
-            parts.append(f"\n### [{f['category']}] {f['filename']}\n{f['content']}")
-
-    # 5. CEO / role rules
-    if is_ceo:
-        parts.append("""
-## CEO Authority
-
-You lead your department. Full autonomous authority within mandate.
-
-**Independent decisions:** approve/reject drafts, respond to mail, create/edit strategies,
-hire/fire agents, delegate to senior agents, update projects, propose draft endeavors.
-
-**Escalate to Founder when:** unsure about major decision, cross-dept impact,
-resource authority exceeded, critical/urgent situation.
-
-**Weekly Report (Monday):** invoke all agents → collect briefs → write and submit one weekly report.
-
-**Strict dedup:** Search BEFORE any draft action. Approved draft on same topic → revert to pending, then edit.
-
-**Mail discipline:** ONE mail per recipient per topic. Use military format for urgent matters.
-
-**Hierarchy:** You may only directly manage agents in your department.
-""")
-    else:
-        parts.append("""
-## Your Role
-- Produce drafts within your domain. CHECK for existing drafts first.
-- Max ONE mail per topic. Keep mails short.
-- Escalate only genuinely important items to your CEO.
-- Only interact with agents that report to you or your direct superior.
-""")
-
-    # 6. Tools spec
-    if chat_mode:
-        parts.append(CHAT_TOOLS_SPEC)
-        parts.append("""
-## Chat Mode
-
-You are speaking with the Founder. Be direct and in-character.
-When using tools: announce what you're doing, emit [TOOL_CALL: {...}], reference the result.
-""")
-    else:
-        parts.append(HEARTBEAT_ACTIONS_SPEC)
-
-    # 7. Global append
-    if append.strip():
-        parts.append(f"\n# Additional Global Instructions\n{append.strip()}")
-
-    return "\n".join(parts)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Chat tool executor
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Chat tool executor ─────────────────────────────────────────────────────────
 
 async def execute_chat_tool(tool: str, params: dict, agent: dict) -> str:
     dept_id = agent.get("dept_id", "")
     aid     = agent.get("id", "")
     is_ceo  = bool(agent.get("is_ceo"))
+
+    if tool == "web_search":
+        try:
+            from core.web_search import web_search as _ws
+            return await _ws(params.get("query", ""), await _get_all_settings())
+        except Exception as e:
+            return f"Web search error: {e}"
 
     try:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -530,360 +290,249 @@ async def execute_chat_tool(tool: str, params: dict, agent: dict) -> str:
             if tool == "list_dept_files":
                 d = params.get("dept_id", dept_id).upper()
                 async with db.execute(
-                    "SELECT category, filename, updated_at FROM dept_md_files WHERE dept_id=? ORDER BY category, filename",
-                    (d,)
-                ) as cur:
+                    "SELECT category, filename, updated_at FROM dept_md_files WHERE dept_id=? ORDER BY category, filename", (d,)) as cur:
                     rows = [dict(r) for r in await cur.fetchall()]
                 return json.dumps(rows, indent=2) if rows else "No files found."
 
             elif tool == "read_dept_file":
-                d  = params.get("dept_id", dept_id).upper()
-                fn = params.get("filename", "")
-                async with db.execute(
-                    "SELECT content, category FROM dept_md_files WHERE dept_id=? AND filename=?", (d, fn)
-                ) as cur:
+                d, fn = params.get("dept_id", dept_id).upper(), params.get("filename", "")
+                async with db.execute("SELECT content FROM dept_md_files WHERE dept_id=? AND filename=?", (d, fn)) as cur:
                     row = await cur.fetchone()
                 return row["content"] if row else f"File '{fn}' not found."
 
             elif tool == "write_dept_file":
-                d   = params.get("dept_id", dept_id).upper()
-                fn  = params.get("filename", "")
-                cat = params.get("category", "guidelines")
-                con = params.get("content", "")
-                ts  = datetime.utcnow().isoformat()
-                async with db.execute(
-                    "SELECT id FROM dept_md_files WHERE dept_id=? AND filename=?", (d, fn)
-                ) as cur:
-                    existing = await cur.fetchone()
-                if existing:
-                    await db.execute(
-                        "UPDATE dept_md_files SET content=?, category=?, updated_at=? WHERE id=?",
-                        (con, cat, ts, existing["id"])
-                    )
+                d, fn = params.get("dept_id", dept_id).upper(), params.get("filename", "")
+                cat, con, ts = params.get("category", "guidelines"), params.get("content", ""), datetime.utcnow().isoformat()
+                async with db.execute("SELECT id FROM dept_md_files WHERE dept_id=? AND filename=?", (d, fn)) as cur:
+                    ex = await cur.fetchone()
+                if ex:
+                    await db.execute("UPDATE dept_md_files SET content=?,category=?,updated_at=? WHERE id=?", (con, cat, ts, ex["id"]))
                 else:
-                    await db.execute(
-                        "INSERT INTO dept_md_files (id,dept_id,category,filename,content) VALUES (?,?,?,?,?)",
-                        (str(uuid.uuid4()), d, cat, fn, con)
-                    )
+                    await db.execute("INSERT INTO dept_md_files (id,dept_id,category,filename,content) VALUES (?,?,?,?,?)", (str(uuid.uuid4()), d, cat, fn, con))
                 await db.commit()
-                return f"✓ Written: {fn} ({len(con)} chars)"
+                return f"Written: {fn} ({len(con)} chars)"
 
             elif tool == "read_agent_file":
-                a_id = params.get("agent_id", aid)
-                fn   = params.get("filename", "")
-                async with db.execute(
-                    "SELECT content FROM agent_md_files WHERE agent_id=? AND filename=?", (a_id, fn)
-                ) as cur:
+                a_id, fn = params.get("agent_id", aid), params.get("filename", "")
+                async with db.execute("SELECT content FROM agent_md_files WHERE agent_id=? AND filename=?", (a_id, fn)) as cur:
                     row = await cur.fetchone()
                 return row["content"] if row else f"File '{fn}' not found."
 
             elif tool == "write_agent_file":
-                a_id = params.get("agent_id", aid)
-                fn   = params.get("filename", "")
-                cat  = params.get("category", "knowledge")
-                con  = params.get("content", "")
-                ts   = datetime.utcnow().isoformat()
-                async with db.execute(
-                    "SELECT id FROM agent_md_files WHERE agent_id=? AND filename=?", (a_id, fn)
-                ) as cur:
-                    existing = await cur.fetchone()
-                if existing:
-                    await db.execute("UPDATE agent_md_files SET content=?, updated_at=? WHERE id=?",
-                                     (con, ts, existing["id"]))
+                a_id, fn = params.get("agent_id", aid), params.get("filename", "")
+                cat, con, ts = params.get("category", "knowledge"), params.get("content", ""), datetime.utcnow().isoformat()
+                async with db.execute("SELECT id FROM agent_md_files WHERE agent_id=? AND filename=?", (a_id, fn)) as cur:
+                    ex = await cur.fetchone()
+                if ex:
+                    await db.execute("UPDATE agent_md_files SET content=?,updated_at=? WHERE id=?", (con, ts, ex["id"]))
                 else:
-                    await db.execute(
-                        "INSERT INTO agent_md_files (id,agent_id,category,filename,content) VALUES (?,?,?,?,?)",
-                        (str(uuid.uuid4()), a_id, cat, fn, con)
-                    )
+                    await db.execute("INSERT INTO agent_md_files (id,agent_id,category,filename,content) VALUES (?,?,?,?,?)", (str(uuid.uuid4()), a_id, cat, fn, con))
                 await db.commit()
-                return f"✓ Written agent file: {fn}"
+                return f"Written agent file: {fn}"
 
             elif tool == "list_drafts":
-                d      = params.get("dept_id", dept_id).upper()
-                status = params.get("status", "pending")
-                if status == "all":
-                    async with db.execute(
-                        "SELECT id,title,draft_type,status,created_at,reviewed_by,reviewed_at FROM drafts WHERE dept_id=? ORDER BY created_at DESC LIMIT 20",
-                        (d,)
-                    ) as cur:
-                        rows = [dict(r) for r in await cur.fetchall()]
-                else:
-                    async with db.execute(
-                        "SELECT id,title,draft_type,status,created_at,reviewed_by,reviewed_at FROM drafts WHERE dept_id=? AND status=? ORDER BY created_at DESC LIMIT 20",
-                        (d, status)
-                    ) as cur:
-                        rows = [dict(r) for r in await cur.fetchall()]
+                d, status = params.get("dept_id", dept_id).upper(), params.get("status", "pending")
+                q, p = "SELECT id,title,draft_type,status,created_at,reviewed_by,reviewed_at FROM drafts WHERE dept_id=?", [d]
+                if status != "all":
+                    q += " AND status=?"; p.append(status)
+                async with db.execute(q + " ORDER BY created_at DESC LIMIT 20", p) as cur:
+                    rows = [dict(r) for r in await cur.fetchall()]
                 return json.dumps(rows, indent=2) if rows else "No drafts found."
 
             elif tool == "search_drafts":
-                d     = params.get("dept_id", dept_id).upper()
-                query = params.get("query", "")
+                d, query = params.get("dept_id", dept_id).upper(), params.get("query", "")
                 async with db.execute(
-                    "SELECT id,title,draft_type,status,reviewed_by,reviewed_at FROM drafts WHERE dept_id=? AND LOWER(title) LIKE LOWER(?) ORDER BY created_at DESC LIMIT 10",
-                    (d, f"%{query}%")
-                ) as cur:
+                    "SELECT id,title,draft_type,status FROM drafts WHERE dept_id=? AND LOWER(title) LIKE LOWER(?) ORDER BY created_at DESC LIMIT 10",
+                    (d, f"%{query}%")) as cur:
                     rows = [dict(r) for r in await cur.fetchall()]
                 return json.dumps(rows, indent=2) if rows else "No matching drafts."
 
             elif tool == "read_draft":
-                draft_id = params.get("draft_id", "")
-                async with db.execute(
-                    "SELECT id,title,content,draft_type,status,reviewed_by,reviewed_at FROM drafts WHERE id=?",
-                    (draft_id,)
-                ) as cur:
+                did = params.get("draft_id", "")
+                async with db.execute("SELECT id,title,content,draft_type,status,reviewed_by,reviewed_at FROM drafts WHERE id=?", (did,)) as cur:
                     row = await cur.fetchone()
-                if not row:
-                    return "Draft not found."
+                if not row: return "Draft not found."
                 r = dict(row)
-                rev_info = f" | Reviewed by: {r['reviewed_by']} at {r['reviewed_at'][:16]}" if r.get("reviewed_by") else ""
-                return f"# {r['title']}\n**Type:** {r['draft_type']} | **Status:** {r['status']}{rev_info}\n\n{r['content']}"
+                rev = f" | By: {r['reviewed_by']} @ {r['reviewed_at'][:16]}" if r.get("reviewed_by") else ""
+                return f"# {r['title']}\n**Type:** {r['draft_type']} | **Status:** {r['status']}{rev}\n\n{r['content']}"
 
             elif tool == "create_draft":
-                d     = params.get("dept_id", dept_id).upper()
-                title = params.get("title", "Draft")
-                keywords = [w for w in title.lower().split() if len(w) > 3][:5]
-                existing = await _check_existing_draft_raw(db, d, keywords)
-                if existing:
-                    return f"⚠ Existing draft found: '{existing['title']}' (id: {existing['id']}, status: {existing['status']}). Use update_draft instead."
+                d, title = params.get("dept_id", dept_id).upper(), params.get("title", "Draft")
+                kw = [w for w in title.lower().split() if len(w) > 3][:5]
+                ex = await _check_existing_draft_raw(db, d, kw)
+                if ex: return f"Existing draft: '{ex['title']}' (id:{ex['id']}, status:{ex['status']}). Use update_draft."
                 did = str(uuid.uuid4())
                 await db.execute(
                     "INSERT INTO drafts (id,dept_id,title,content,draft_type,priority,status,created_by_agent) VALUES (?,?,?,?,?,?,?,?)",
-                    (did, d, title, params.get("content",""),
-                     params.get("draft_type","memo"), params.get("priority","normal"), "pending", aid)
-                )
+                    (did, d, title, params.get("content",""), params.get("draft_type","memo"), params.get("priority","normal"), "pending", aid))
                 await db.commit()
-                return f"✓ Draft created: {title} (id: {did})"
+                return f"Draft created: {title} (id:{did})"
 
             elif tool == "update_draft":
-                draft_id    = params.get("draft_id","")
-                append      = params.get("append", False)
-                new_content = params.get("content","")
-                new_title   = params.get("title")
-                async with db.execute("SELECT content FROM drafts WHERE id=?", (draft_id,)) as cur:
+                did, app = params.get("draft_id",""), params.get("append", False)
+                new_c, new_t = params.get("content",""), params.get("title")
+                async with db.execute("SELECT content FROM drafts WHERE id=?", (did,)) as cur:
                     row = await cur.fetchone()
-                if not row:
-                    return "Draft not found."
-                final = (row["content"] or "") + "\n\n---\n\n" + new_content if append else new_content
-                if new_title:
-                    await db.execute("UPDATE drafts SET content=?, title=?, status='pending' WHERE id=?",
-                                     (final, new_title, draft_id))
+                if not row: return "Draft not found."
+                final = (row["content"] or "") + "\n\n---\n\n" + new_c if app else new_c
+                if new_t:
+                    await db.execute("UPDATE drafts SET content=?,title=?,status='pending' WHERE id=?", (final, new_t, did))
                 else:
-                    await db.execute("UPDATE drafts SET content=?, status='pending' WHERE id=?",
-                                     (final, draft_id))
+                    await db.execute("UPDATE drafts SET content=?,status='pending' WHERE id=?", (final, did))
                 await db.commit()
-                return f"✓ Draft updated ({len(final)} chars)"
+                return f"Draft updated ({len(final)} chars)"
 
             elif tool == "change_draft_status":
-                draft_id    = params.get("draft_id","")
-                new_status  = params.get("status","pending")
-                notes       = params.get("notes","")
-                rev_by      = params.get("reviewed_by", agent.get("name","agent"))
-                valid       = {"revised","approved","rejected","pending","archived"}
-                if new_status not in valid:
-                    return f"Invalid status. Use one of: {valid}"
-                # Block approving a revised draft
-                if new_status == "approved":
-                    async with db.execute("SELECT status FROM drafts WHERE id=?", (draft_id,)) as cur:
+                did, new_s = params.get("draft_id",""), params.get("status","pending")
+                notes, rev_by = params.get("notes",""), params.get("reviewed_by", agent.get("name","agent"))
+                valid = {"revised","approved","rejected","pending","archived"}
+                if new_s not in valid: return f"Invalid status. Use one of: {valid}"
+                if new_s == "approved":
+                    async with db.execute("SELECT status FROM drafts WHERE id=?", (did,)) as cur:
                         row = await cur.fetchone()
                     if row and row["status"] == "revised":
-                        return "⚠ Cannot approve a 'revised' draft — creator must review the changes first."
+                        return "Cannot approve revised draft — creator must review first."
                 ts = datetime.utcnow().isoformat()
-                if new_status == "revised" and notes:
-                    async with db.execute("SELECT content FROM drafts WHERE id=?", (draft_id,)) as cur:
+                if new_s == "revised" and notes:
+                    async with db.execute("SELECT content FROM drafts WHERE id=?", (did,)) as cur:
                         row = await cur.fetchone()
-                    note_block = f"\n\n---\n**📝 REVISION REQUEST [{ts[:16]}] by {rev_by}:**\n{notes}"
+                    block = f"\n\n---\n**REVISION [{ts[:16]}] by {rev_by}:**\n{notes}"
                     await db.execute(
-                        "UPDATE drafts SET status='revised', review_notes=?, revised_by=?, revised_at=?, content=? WHERE id=?",
-                        (notes, rev_by, ts, (row["content"] if row else "") + note_block, draft_id)
-                    )
+                        "UPDATE drafts SET status='revised',review_notes=?,revised_by=?,revised_at=?,content=? WHERE id=?",
+                        (notes, rev_by, ts, (row["content"] if row else "") + block, did))
                 else:
-                    await db.execute(
-                        "UPDATE drafts SET status=?, review_notes=?, reviewed_by=?, reviewed_at=? WHERE id=?",
-                        (new_status, notes, rev_by, ts, draft_id)
-                    )
+                    await db.execute("UPDATE drafts SET status=?,review_notes=?,reviewed_by=?,reviewed_at=? WHERE id=?",
+                        (new_s, notes, rev_by, ts, did))
                 await db.commit()
-                return f"✓ Draft status changed to '{new_status}'"
+                return f"Draft status set to '{new_s}'"
 
             elif tool == "revert_draft_to_pending":
-                draft_id = params.get("draft_id","")
-                await db.execute("UPDATE drafts SET status='pending' WHERE id=?", (draft_id,))
+                await db.execute("UPDATE drafts SET status='pending' WHERE id=?", (params.get("draft_id",""),))
                 await db.commit()
-                return f"✓ Draft {draft_id} reverted to pending."
+                return "Draft reverted to pending."
 
             elif tool == "delegate_draft":
-                draft_id    = params.get("draft_id","")
-                to_agent_id = params.get("to_agent_id","")
-                notes       = params.get("notes","")
-                # Check hierarchy
-                if not await _can_act_on(aid, to_agent_id):
-                    return "⚠ Cannot delegate to an agent outside your chain of command."
-                await db.execute("UPDATE drafts SET assigned_to=? WHERE id=?", (to_agent_id, draft_id))
-                if notes:
-                    async with db.execute("SELECT content FROM drafts WHERE id=?", (draft_id,)) as cur:
+                did, to_aid = params.get("draft_id",""), params.get("to_agent_id","")
+                if not await _can_act_on(aid, to_aid): return "Cannot delegate outside your chain of command."
+                await db.execute("UPDATE drafts SET assigned_to=? WHERE id=?", (to_aid, did))
+                if params.get("notes"):
+                    async with db.execute("SELECT content FROM drafts WHERE id=?", (did,)) as cur:
                         row = await cur.fetchone()
-                    note_block = f"\n\n---\n**📋 DELEGATED to {to_agent_id} by {agent.get('name','')}:**\n{notes}"
-                    await db.execute("UPDATE drafts SET content=? WHERE id=?",
-                                     ((row["content"] if row else "") + note_block, draft_id))
+                    nb = f"\n\n---\n**DELEGATED to {to_aid} by {agent.get('name','')}:**\n{params['notes']}"
+                    await db.execute("UPDATE drafts SET content=? WHERE id=?", ((row["content"] if row else "") + nb, did))
                 await db.commit()
-                return f"✓ Draft delegated to agent {to_agent_id}"
+                return f"Draft delegated to {to_aid}"
 
             elif tool == "request_superior_review":
-                draft_id = params.get("draft_id","")
-                notes    = params.get("notes","")
-                h        = await _get_hierarchy(aid)
-                superior = h.get("superior")
-                if not superior:
-                    return "No superior found — are you the CEO?"
-                async with db.execute("SELECT content FROM drafts WHERE id=?", (draft_id,)) as cur:
+                h = await _get_hierarchy(aid)
+                sup = h.get("superior")
+                if not sup: return "No superior found."
+                did = params.get("draft_id","")
+                async with db.execute("SELECT content FROM drafts WHERE id=?", (did,)) as cur:
                     row = await cur.fetchone()
-                note_block = f"\n\n---\n**🔼 REVIEW REQUESTED from {superior['name']} by {agent.get('name','')}:**\n{notes}"
-                await db.execute("UPDATE drafts SET content=? WHERE id=?",
-                                 ((row["content"] if row else "") + note_block, draft_id))
+                nb = f"\n\n---\n**REVIEW REQUESTED from {sup['name']} by {agent.get('name','')}:**\n{params.get('notes','')}"
+                await db.execute("UPDATE drafts SET content=? WHERE id=?", ((row["content"] if row else "") + nb, did))
                 await db.commit()
-                return f"✓ Review requested from {superior['name']}"
+                return f"Review requested from {sup['name']}"
 
             elif tool == "get_mail":
                 d = params.get("dept_id", dept_id).upper()
-                async with db.execute("""
-                    SELECT id,from_dept,to_dept,subject,body,priority,status,created_at
-                    FROM mail_messages WHERE to_dept=? AND status != 'archived'
-                    ORDER BY created_at DESC LIMIT 15
-                """, (d,)) as cur:
+                async with db.execute(
+                    "SELECT id,from_dept,subject,body,priority,status,created_at FROM mail_messages WHERE to_dept=? AND status != 'archived' ORDER BY created_at DESC LIMIT 15",
+                    (d,)) as cur:
                     rows = [dict(r) for r in await cur.fetchall()]
-                if not rows:
-                    return "No unarchived mail."
-                out = []
-                for m in rows:
-                    out.append(f"[{m['id'][:8]}] From {m['from_dept']} [{m['priority']}] {m['status']}: {m['subject']}\n  {m['body'][:120]}")
-                return "\n\n".join(out)
+                if not rows: return "No unarchived mail."
+                return "\n\n".join(f"[{m['id'][:8]}] From {m['from_dept']} [{m['priority']}]: {m['subject']}\n  {m['body'][:120]}" for m in rows)
 
             elif tool == "delete_mail":
-                mail_id = params.get("mail_id","")
-                await db.execute("UPDATE mail_messages SET status='archived' WHERE id=?", (mail_id,))
+                await db.execute("UPDATE mail_messages SET status='archived' WHERE id=?", (params.get("mail_id",""),))
                 await db.commit()
-                return f"✓ Mail {mail_id} archived."
+                return "Mail archived."
 
             elif tool == "send_mail":
                 body = params.get("body","")
-                if params.get("priority") in ("high","critical"):
-                    body = _militarize(body, agent)
+                if params.get("priority") in ("high","critical"): body = _militarize(body, agent)
                 mid = str(uuid.uuid4())
                 await db.execute(
                     "INSERT INTO mail_messages (id,from_dept,to_dept,subject,body,priority,thread_id,status) VALUES (?,?,?,?,?,?,?,?)",
-                    (mid, dept_id, params.get("to_dept","STR"),
-                     params.get("subject",""), body, params.get("priority","normal"),
-                     str(uuid.uuid4()), "unread")
-                )
+                    (mid, dept_id, params.get("to_dept","STR"), params.get("subject",""), body, params.get("priority","normal"), str(uuid.uuid4()), "unread"))
                 await db.commit()
-                return f"✓ Mail sent to {params.get('to_dept')}: {params.get('subject','')}"
+                return f"Mail sent to {params.get('to_dept')}: {params.get('subject','')}"
 
             elif tool == "forward_mail":
-                mail_id  = params.get("mail_id","")
-                to_dept  = params.get("to_dept","")
-                note     = params.get("note","")
-                async with db.execute("SELECT * FROM mail_messages WHERE id=?", (mail_id,)) as cur:
+                async with db.execute("SELECT * FROM mail_messages WHERE id=?", (params.get("mail_id",""),)) as cur:
                     orig = await cur.fetchone()
-                if not orig:
-                    return "Mail not found."
-                body = f"[FORWARDED from {dict(orig)['from_dept']} by {agent.get('name','')}]\n{note}\n\n---\n{dict(orig)['body']}"
+                if not orig: return "Mail not found."
+                body = f"[FORWARDED from {dict(orig)['from_dept']} by {agent.get('name','')}]\n{params.get('note','')}\n\n---\n{dict(orig)['body']}"
                 mid = str(uuid.uuid4())
                 await db.execute(
                     "INSERT INTO mail_messages (id,from_dept,to_dept,subject,body,priority,thread_id,status) VALUES (?,?,?,?,?,?,?,?)",
-                    (mid, dept_id, to_dept.upper(),
-                     f"FWD: {dict(orig)['subject']}", body, "normal", str(uuid.uuid4()), "unread")
-                )
+                    (mid, dept_id, params.get("to_dept","").upper(), f"FWD: {dict(orig)['subject']}", body, "normal", str(uuid.uuid4()), "unread"))
                 await db.commit()
-                return f"✓ Mail forwarded to {to_dept}"
+                return f"Mail forwarded to {params.get('to_dept')}"
 
             elif tool in ("send_to_founder", "write_to_founder"):
                 body = _militarize(params.get("body",""), agent)
                 mid  = str(uuid.uuid4())
                 await db.execute(
                     "INSERT INTO founder_mail (id,from_agent_id,from_dept_id,subject,body,priority,requires_decision,context_json) VALUES (?,?,?,?,?,?,?,?)",
-                    (mid, aid, dept_id, params.get("subject",""), body,
-                     params.get("priority","high"),
-                     1 if params.get("requires_decision") else 0, "{}")
-                )
-                # Also send mail to CEO if not the CEO
+                    (mid, aid, dept_id, params.get("subject",""), body, params.get("priority","high"),
+                     1 if params.get("requires_decision") else 0, "{}"))
                 if not is_ceo:
-                    async with db.execute(
-                        "SELECT id,name FROM agents WHERE dept_id=? AND is_ceo=1 AND status='active'",
-                        (dept_id,)
-                    ) as cur:
+                    async with db.execute("SELECT id FROM agents WHERE dept_id=? AND is_ceo=1 AND status='active'", (dept_id,)) as cur:
                         ceo = await cur.fetchone()
                     if ceo:
                         await db.execute(
                             "INSERT INTO mail_messages (id,from_dept,to_dept,subject,body,priority,thread_id,status) VALUES (?,?,?,?,?,?,?,?)",
                             (str(uuid.uuid4()), dept_id, dept_id,
                              f"[FOUNDER ESCALATION] {params.get('subject','')}",
-                             f"Sent to Founder by {agent.get('name','')}:\n\n{body}",
-                             "high", str(uuid.uuid4()), "unread")
-                        )
+                             f"Sent to Founder by {agent.get('name','')}:\n\n{body}", "high", str(uuid.uuid4()), "unread"))
                 await db.commit()
-                return f"✓ Message sent to Founder: {params.get('subject','')}"
+                return f"Message sent to Founder: {params.get('subject','')}"
 
             elif tool == "get_superior":
-                h = await _get_hierarchy(aid)
-                sup = h.get("superior")
-                if not sup:
-                    return "No superior (you may be at the top of the hierarchy)."
-                return json.dumps(sup, indent=2)
+                sup = (await _get_hierarchy(aid)).get("superior")
+                return json.dumps(sup, indent=2) if sup else "No superior found."
 
             elif tool == "get_subordinates":
-                h = await _get_hierarchy(aid)
-                reports = h.get("reports", [])
+                reports = (await _get_hierarchy(aid)).get("reports", [])
                 return json.dumps(reports, indent=2) if reports else "No direct reports."
 
             elif tool == "hire_agent":
-                if not is_ceo:
-                    return "⚠ Only CEOs can hire agents directly."
-                new_id_val = str(uuid.uuid4())
+                if not is_ceo: return "Only CEOs can hire directly."
+                new_id = str(uuid.uuid4())
                 async with db.execute("SELECT hierarchy_level FROM agents WHERE id=?", (aid,)) as cur:
                     row = await cur.fetchone()
                 level = (row["hierarchy_level"] + 1) if row else 3
                 await db.execute("""
-                    INSERT INTO agents (id,dept_id,name,role,title,hierarchy_level,
-                    parent_agent_id,personality,tone,heartbeat_interval,created_by)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                """, (new_id_val, dept_id, params.get("name","New Agent"),
-                      params.get("role","analyst"), params.get("title",""),
-                      level, aid, params.get("personality",""),
-                      params.get("tone",""), 5, aid))
+                    INSERT INTO agents (id,dept_id,name,role,title,hierarchy_level,parent_agent_id,personality,tone,heartbeat_interval,created_by)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    (new_id, dept_id, params.get("name","New Agent"), params.get("role","analyst"),
+                     params.get("title",""), level, aid, params.get("personality",""), params.get("tone",""), 5, aid))
                 await db.commit()
-                return f"✓ Agent hired: {params.get('name')} as {params.get('role')} (id: {new_id_val})"
+                return f"Agent hired: {params.get('name')} (id:{new_id})"
 
             elif tool == "list_agents":
                 d = params.get("dept_id", dept_id).upper()
                 async with db.execute(
-                    "SELECT id,name,role,title,is_ceo,status,hierarchy_level FROM agents WHERE dept_id=? AND status='active' ORDER BY hierarchy_level,name",
-                    (d,)
-                ) as cur:
+                    "SELECT id,name,role,title,is_ceo,status,hierarchy_level FROM agents WHERE dept_id=? AND status='active' ORDER BY hierarchy_level,name", (d,)) as cur:
                     rows = [dict(r) for r in await cur.fetchall()]
                 return json.dumps(rows, indent=2) if rows else "No active agents."
 
             elif tool == "list_endeavors":
                 d = params.get("dept_id", dept_id).upper()
-                async with db.execute(
-                    "SELECT id,name,status FROM endeavors WHERE dept_id=? AND status='active'", (d,)
-                ) as cur:
+                async with db.execute("SELECT id,name,status FROM endeavors WHERE dept_id=? AND status='active'", (d,)) as cur:
                     rows = [dict(r) for r in await cur.fetchall()]
                 return json.dumps(rows, indent=2) if rows else "No active endeavors."
 
             elif tool == "search_endeavors":
-                name_q = params.get("name_query", params.get("query", ""))
-                d = params.get("dept_id", dept_id).upper()
-                async with db.execute(
-                    "SELECT id,name,status FROM endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 10",
-                    (d, f"%{name_q}%")
-                ) as cur:
-                    rows_e = [dict(r) for r in await cur.fetchall()]
-                async with db.execute(
-                    "SELECT id,name,status FROM draft_endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 10",
-                    (d, f"%{name_q}%")
-                ) as cur:
-                    rows_de = [dict(r) for r in await cur.fetchall()]
-                combined = [{"source": "active", **r} for r in rows_e] + [{"source": "draft", **r} for r in rows_de]
-                return json.dumps(combined, indent=2) if combined else "No matching endeavors found."
+                name_q, d = params.get("name_query", params.get("query","")), params.get("dept_id", dept_id).upper()
+                async with db.execute("SELECT id,name,status FROM endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 10", (d, f"%{name_q}%")) as cur:
+                    rows_e = [{"source":"active", **dict(r)} for r in await cur.fetchall()]
+                async with db.execute("SELECT id,name,status FROM draft_endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 10", (d, f"%{name_q}%")) as cur:
+                    rows_d = [{"source":"draft", **dict(r)} for r in await cur.fetchall()]
+                combined = rows_e + rows_d
+                return json.dumps(combined, indent=2) if combined else "No matching endeavors."
 
             elif tool == "list_topics":
                 async with db.execute("SELECT id,name,description,color FROM topics ORDER BY name") as cur:
@@ -891,96 +540,67 @@ async def execute_chat_tool(tool: str, params: dict, agent: dict) -> str:
                 return json.dumps(rows, indent=2) if rows else "No topics yet."
 
             elif tool == "search_topics":
-                q = params.get("query", "")
-                async with db.execute(
-                    "SELECT id,name,description,color FROM topics WHERE LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 10",
-                    (f"%{q}%",)
-                ) as cur:
+                q = params.get("query","")
+                async with db.execute("SELECT id,name,description FROM topics WHERE LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 10", (f"%{q}%",)) as cur:
                     rows = [dict(r) for r in await cur.fetchall()]
                 return json.dumps(rows, indent=2) if rows else "No matching topics."
 
             elif tool == "create_topic":
-                tname = params.get("name", "").strip()
-                if not tname:
-                    return "Topic name is required."
+                tname = params.get("name","").strip()
+                if not tname: return "Topic name required."
                 async with db.execute("SELECT id FROM topics WHERE LOWER(name)=LOWER(?)", (tname,)) as cur:
-                    existing = await cur.fetchone()
-                if existing:
-                    return f"Topic '{tname}' already exists (id: {dict(existing)['id']})."
-                tid_new = str(uuid.uuid4())
-                await db.execute(
-                    "INSERT INTO topics (id,name,description,color) VALUES (?,?,?,?)",
-                    (tid_new, tname, params.get("description",""), params.get("color","#58a6ff"))
-                )
+                    ex = await cur.fetchone()
+                if ex: return f"Topic '{tname}' already exists (id:{dict(ex)['id']})."
+                tid = str(uuid.uuid4())
+                await db.execute("INSERT INTO topics (id,name,description,color) VALUES (?,?,?,?)",
+                    (tid, tname, params.get("description",""), params.get("color","#58a6ff")))
                 await db.commit()
-                return f"✓ Topic created: '{tname}' (id: {tid_new})"
+                return f"Topic '{tname}' created (id:{tid})"
 
             elif tool == "assign_topic":
-                item_type = params.get("item_type","")
-                item_id   = params.get("item_id","")
-                topic_id  = params.get("topic_id","")
-                table_map = {"draft": "drafts", "mail": "mail_messages", "project": "projects"}
-                table = table_map.get(item_type)
-                if not table:
-                    return f"Unknown item_type: {item_type}"
-                await db.execute(f"UPDATE {table} SET topic_id=? WHERE id=?", (topic_id, item_id))
+                table_map = {"draft":"drafts","mail":"mail_messages","project":"projects"}
+                table = table_map.get(params.get("item_type",""))
+                if not table: return f"Unknown item_type: {params.get('item_type')}"
+                await db.execute(f"UPDATE {table} SET topic_id=? WHERE id=?", (params.get("topic_id",""), params.get("item_id","")))
                 await db.commit()
-                return f"✓ Topic assigned to {item_type} {item_id}"
+                return "Topic assigned."
 
             elif tool == "create_endeavor_proposal":
-                # ── Dedup check: search existing endeavors (active + draft) by name ──
                 ename = params.get("name","").strip()
-                async with db.execute(
-                    "SELECT id,name FROM endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='active' LIMIT 1",
-                    (dept_id, f"%{ename[:20]}%")
-                ) as cur:
-                    existing_real = await cur.fetchone()
-                if existing_real:
-                    return f"⚠ Active endeavor already exists: '{dict(existing_real)['name']}' (id: {dict(existing_real)['id']}). Add phases/tasks to it instead of creating a duplicate."
-                async with db.execute(
-                    "SELECT id,name FROM draft_endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='pending' LIMIT 1",
-                    (dept_id, f"%{ename[:20]}%")
-                ) as cur:
-                    existing_draft = await cur.fetchone()
-                if existing_draft:
-                    return f"⚠ Draft endeavor already pending: '{dict(existing_draft)['name']}' (id: {dict(existing_draft)['id']}). Modify it instead."
+                async with db.execute("SELECT id,name FROM endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='active' LIMIT 1", (dept_id, f"%{ename[:20]}%")) as cur:
+                    ex = await cur.fetchone()
+                if ex: return f"Active endeavor exists: '{dict(ex)['name']}'. Add phases to it instead."
+                async with db.execute("SELECT id,name FROM draft_endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='pending' LIMIT 1", (dept_id, f"%{ename[:20]}%")) as cur:
+                    ex = await cur.fetchone()
+                if ex: return f"Draft endeavor pending: '{dict(ex)['name']}'. Modify it instead."
                 eid = str(uuid.uuid4())
-                await db.execute(
-                    "INSERT INTO draft_endeavors (id,created_by,dept_id,name,description,phases_json) VALUES (?,?,?,?,?,?)",
-                    (eid, aid, dept_id, ename, params.get("description",""),
-                     json.dumps(params.get("phases",[])))
-                )
+                await db.execute("INSERT INTO draft_endeavors (id,created_by,dept_id,name,description,phases_json) VALUES (?,?,?,?,?,?)",
+                    (eid, aid, dept_id, ename, params.get("description",""), json.dumps(params.get("phases",[]))))
                 await db.commit()
-                return f"✓ Endeavor proposal submitted (id: {eid})"
+                return f"Endeavor proposal submitted (id:{eid})"
 
             elif tool == "update_project":
                 pname = params.get("project_name","")
-                updates, pms = [], []
-                if params.get("status"):   updates.append("status=?");   pms.append(params["status"])
-                if params.get("priority"): updates.append("priority=?"); pms.append(params["priority"])
-                if updates and pname:
+                sets, pms = [], []
+                if params.get("status"):   sets.append("status=?");   pms.append(params["status"])
+                if params.get("priority"): sets.append("priority=?"); pms.append(params["priority"])
+                if sets and pname:
                     pms += [dept_id, f"%{pname}%"]
-                    await db.execute(
-                        f"UPDATE projects SET {','.join(updates)} WHERE dept_id=? AND name LIKE ?", pms
-                    )
+                    await db.execute(f"UPDATE projects SET {','.join(sets)} WHERE dept_id=? AND name LIKE ?", pms)
                     await db.commit()
-                return f"✓ Project updated: {pname}"
+                return f"Project updated: {pname}"
 
     except Exception as e:
-        return f"Tool error ({tool}): {str(e)}"
-
+        return f"Tool error ({tool}): {e}"
     return f"Unknown tool: {tool}"
 
 
 async def _check_existing_draft_raw(db, dept_id: str, keywords: list) -> Optional[dict]:
-    if not keywords:
-        return None
-    conditions = " OR ".join(["(LOWER(title) LIKE LOWER(?))"] * len(keywords))
+    if not keywords: return None
+    conds = " OR ".join(["(LOWER(title) LIKE LOWER(?))"] * len(keywords))
     params = [f"%{k}%" for k in keywords] + [dept_id.upper()]
     async with db.execute(
-        f"SELECT id,title,content,draft_type,status FROM drafts WHERE ({conditions}) AND dept_id=? AND status NOT IN ('rejected','archived') ORDER BY created_at DESC LIMIT 1",
-        params
-    ) as cur:
+        f"SELECT id,title,content,draft_type,status FROM drafts WHERE ({conds}) AND dept_id=? AND status NOT IN ('rejected','archived') ORDER BY created_at DESC LIMIT 1", params) as cur:
         row = await cur.fetchone()
     return dict(row) if row else None
 
@@ -991,37 +611,24 @@ async def _check_existing_draft(dept_id: str, keywords: list) -> Optional[dict]:
         return await _check_existing_draft_raw(db, dept_id, keywords)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Chat with tool-call processing
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Chat with tool-call processing ────────────────────────────────────────────
 
 async def process_chat_with_tools(agent: dict, reply: str) -> tuple[str, list]:
     tool_log = []
     tool_call_re = re.compile(r'\[TOOL_CALL:\s*(\{.*?\})\s*\]', re.DOTALL)
-
     for _ in range(8):
         match = tool_call_re.search(reply)
-        if not match:
-            break
-        try:
-            call_data = json.loads(match.group(1))
-        except json.JSONDecodeError:
-            break
-
-        tool   = call_data.get("tool","")
-        params = call_data.get("params",{})
+        if not match: break
+        try: call_data = json.loads(match.group(1))
+        except json.JSONDecodeError: break
+        tool, params = call_data.get("tool",""), call_data.get("params",{})
         result = await execute_chat_tool(tool, params, agent)
         tool_log.append({"tool": tool, "params": params, "result": result[:400]})
-
-        result_block = f"[TOOL:{tool}]\n{result}\n[/TOOL]"
-        reply = reply[:match.start()] + result_block + reply[match.end():]
-
+        reply = reply[:match.start()] + f"[TOOL:{tool}]\n{result}\n[/TOOL]" + reply[match.end():]
     return reply, tool_log
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Heartbeat
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Heartbeat ─────────────────────────────────────────────────────────────────
 
 async def run_agent_heartbeat(agent_id: str) -> dict:
     await _ensure_heartbeat_columns()
@@ -1029,111 +636,74 @@ async def run_agent_heartbeat(agent_id: str) -> dict:
     if not agent or agent.get("status") != "active":
         return {"ok": False, "error": "Agent inactive or not found"}
 
-    prepend, append = await _get_global_prompts()
-    system_prompt   = _build_system_prompt(agent, chat_mode=False, prepend=prepend, append=append)
-    dept  = agent["dept_id"]
+    settings = await _get_all_settings()
+    prepend  = settings.get("custom_prompt_prepend", "")
+    append   = settings.get("custom_prompt_append", "")
+    system_prompt = _build_system_prompt(agent, chat_mode=False, prepend=prepend, append=append, settings=settings)
+
+    dept   = agent["dept_id"]
     is_ceo = bool(agent.get("is_ceo"))
-    aid   = agent["id"]
+    aid    = agent["id"]
 
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
 
-        # Unread mail for dept
-        async with db.execute(
-            "SELECT id,subject,body,from_dept,priority FROM mail_messages WHERE to_dept=? AND status='unread' ORDER BY created_at DESC LIMIT 8",
-            (dept,)
-        ) as cur:
+        async with db.execute("SELECT id,subject,body,from_dept,priority FROM mail_messages WHERE to_dept=? AND status='unread' ORDER BY created_at DESC LIMIT 8", (dept,)) as cur:
             unread_mail = [dict(r) for r in await cur.fetchall()]
-
-        # All drafts (for dedup + CEO review)
-        async with db.execute(
-            "SELECT id,title,draft_type,status,reviewed_by,reviewed_at,review_notes,created_by_agent FROM drafts WHERE dept_id=? ORDER BY created_at DESC LIMIT 20",
-            (dept,)
-        ) as cur:
+        async with db.execute("SELECT id,title,draft_type,status,reviewed_by,reviewed_at,review_notes,created_by_agent FROM drafts WHERE dept_id=? ORDER BY created_at DESC LIMIT 20", (dept,)) as cur:
             all_drafts = [dict(r) for r in await cur.fetchall()]
-
-        # Drafts specifically assigned to or created by this agent
-        async with db.execute(
-            "SELECT id,title,draft_type,status,review_notes FROM drafts WHERE (assigned_to=? OR created_by_agent=?) AND status IN ('pending','revised') ORDER BY created_at DESC LIMIT 10",
-            (aid, aid)
-        ) as cur:
+        async with db.execute("SELECT id,title,draft_type,status,review_notes FROM drafts WHERE (assigned_to=? OR created_by_agent=?) AND status IN ('pending','revised') ORDER BY created_at DESC LIMIT 10", (aid, aid)) as cur:
             my_drafts = [dict(r) for r in await cur.fetchall()]
-
-        async with db.execute(
-            "SELECT name,description,priority FROM projects WHERE dept_id=? AND status='active'", (dept,)
-        ) as cur:
+        async with db.execute("SELECT name,description,priority FROM projects WHERE dept_id=? AND status='active'", (dept,)) as cur:
             projects = [dict(r) for r in await cur.fetchall()]
-
-        async with db.execute(
-            "SELECT e.name, ep.name as phase FROM endeavors e LEFT JOIN endeavor_phases ep ON ep.endeavor_id=e.id AND ep.is_current=1 WHERE e.dept_id=? AND e.status='active'",
-            (dept,)
-        ) as cur:
+        async with db.execute("SELECT e.name, ep.name as phase FROM endeavors e LEFT JOIN endeavor_phases ep ON ep.endeavor_id=e.id AND ep.is_current=1 WHERE e.dept_id=? AND e.status='active'", (dept,)) as cur:
             endeavors = [dict(r) for r in await cur.fetchall()]
 
-        # Weekly report check
         week_start = date.today().strftime("%Y-W%W")
-        async with db.execute(
-            "SELECT id FROM drafts WHERE dept_id=? AND draft_type='weekly_report' AND title LIKE ? ORDER BY created_at DESC LIMIT 1",
-            (dept, f"%{week_start}%")
-        ) as cur:
+        async with db.execute("SELECT id FROM drafts WHERE dept_id=? AND draft_type='weekly_report' AND title LIKE ? ORDER BY created_at DESC LIMIT 1", (dept, f"%{week_start}%")) as cur:
             weekly_exists = bool(await cur.fetchone())
-
-        # Subordinates
-        async with db.execute(
-            "SELECT id,name,role,title,last_heartbeat FROM agents WHERE parent_agent_id=? AND status='active'",
-            (aid,)
-        ) as cur:
+        async with db.execute("SELECT id,name,role,title,last_heartbeat FROM agents WHERE parent_agent_id=? AND status='active'", (aid,)) as cur:
             subordinates = [dict(r) for r in await cur.fetchall()]
 
-        # Founder replies (CEO only)
         founder_replies = []
         if is_ceo:
-            async with db.execute(
-                """SELECT fm.subject,fm.reply_body FROM founder_mail fm
-                   WHERE fm.from_dept_id=? AND fm.status='replied'
-                     AND fm.replied_at > COALESCE(
-                         (SELECT MAX(ran_at) FROM agent_heartbeat_log WHERE agent_id=?),
-                         '2000-01-01')""",
-                (dept, aid)
-            ) as cur:
+            async with db.execute("""SELECT fm.subject,fm.reply_body FROM founder_mail fm
+               WHERE fm.from_dept_id=? AND fm.status='replied'
+                 AND fm.replied_at > COALESCE((SELECT MAX(ran_at) FROM agent_heartbeat_log WHERE agent_id=?),'2000-01-01')""",
+               (dept, aid)) as cur:
                 founder_replies = [dict(r) for r in await cur.fetchall()]
 
-    ctx = [
-        f"## Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | Week: {week_start}",
-        f"## Department: {dept}",
-    ]
+    ctx = [f"## Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | Week: {week_start}", f"## Department: {dept}"]
 
-    # REVISED DRAFTS — highest priority context
-    revised_drafts = [d for d in my_drafts if d["status"] == "revised"]
-    if revised_drafts:
-        ctx.append(f"\n## ⚠ REVISED DRAFTS NEEDING YOUR ATTENTION ({len(revised_drafts)})")
-        ctx.append("These drafts have revision notes. Address them FIRST in your cycle.")
-        for d in revised_drafts:
+    revised = [d for d in my_drafts if d["status"] == "revised"]
+    if revised:
+        ctx.append(f"\n## REVISED DRAFTS — ADDRESS FIRST ({len(revised)})")
+        for d in revised:
             ctx.append(f"- [id:{d['id']}] {d['title']} — Notes: {d.get('review_notes','')[:200]}")
 
     if my_drafts:
-        ctx.append(f"\n## Your Drafts (assigned to you or created by you, {len(my_drafts)})")
+        ctx.append(f"\n## Your Drafts ({len(my_drafts)})")
         for d in my_drafts:
             ctx.append(f"- [id:{d['id']}] [{d['status'].upper()}] {d['title']}")
 
     if all_drafts:
-        ctx.append(f"\n## All Dept Drafts (dedup check — {len(all_drafts)} total)")
+        ctx.append(f"\n## All Dept Drafts — DEDUP CHECK ({len(all_drafts)} total)")
         for d in all_drafts:
-            rev_info = f" — reviewed by {d['reviewed_by']}" if d.get("reviewed_by") else ""
-            ctx.append(f"- [id:{d['id']}] [{d['status'].upper()}] {d['title']} ({d['draft_type']}){rev_info}")
+            rev = f" — reviewed by {d['reviewed_by']}" if d.get("reviewed_by") else ""
+            ctx.append(f"- [id:{d['id']}] [{d['status'].upper()}] {d['title']} ({d['draft_type']}){rev}")
 
     if unread_mail:
         ctx.append(f"\n## Unread Mail ({len(unread_mail)})")
         for m in unread_mail[:4]:
-            ctx.append(f"- [id:{m['id']}] From {m['from_dept']} [{m['priority']}]: **{m['subject']}** — {m['body'][:200]}")
+            ctx.append(f"- [id:{m['id']}] From {m['from_dept']} [{m['priority']}]: {m['subject']} — {m['body'][:200]}")
 
     if projects:
-        ctx.append(f"\n## Active Projects")
+        ctx.append(f"\n## Active Projects — DO NOT DUPLICATE")
         for p in projects:
             ctx.append(f"- [{p['priority']}] {p['name']}: {p['description'][:80]}")
 
     if endeavors:
-        ctx.append(f"\n## Active Endeavors")
+        ctx.append(f"\n## Active Endeavors — DO NOT DUPLICATE")
         for e in endeavors:
             ctx.append(f"- {e['name']} (phase: {e.get('phase') or 'none'})")
 
@@ -1143,33 +713,27 @@ async def run_agent_heartbeat(agent_id: str) -> dict:
             ctx.append(f"- Re: {r['subject']}: {r['reply_body'][:150]}")
 
     if subordinates:
-        ctx.append(f"\n## Your Team ({len(subordinates)} direct reports)")
+        ctx.append(f"\n## Your Team ({len(subordinates)})")
         for s in subordinates:
             last = s.get("last_heartbeat","never")[:16] if s.get("last_heartbeat") else "never"
             ctx.append(f"- {s['name']} ({s['title'] or s['role']}) — last beat: {last}")
 
     if is_ceo and not weekly_exists:
-        ctx.append(f"\n## ⚠ WEEKLY REPORT DUE — Week {week_start} not yet submitted.")
+        ctx.append(f"\n## WEEKLY REPORT DUE — {week_start}")
 
-    user_prompt = "\n".join(ctx) + "\n\nAnalyze and decide actions. Minimize output."
+    user_prompt = "\n".join(ctx) + "\n\nRespond with JSON: {\"summary\":\"...\",\"actions\":[...]}"
 
     try:
-        result = await route(
-            task_type="agent_heartbeat",
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            dept_id=dept,
-        )
-        text = result.get("text","")
-
-        json_match = re.search(r'\{[\s\S]*\}', text)
-        try:    parsed = json.loads(json_match.group()) if json_match else {}
+        result = await route(task_type="agent_heartbeat", system_prompt=system_prompt, user_prompt=user_prompt, dept_id=dept)
+        text   = result.get("text","")
+        m      = re.search(r'\{[\s\S]*\}', text)
+        try:    parsed = json.loads(m.group()) if m else {}
         except: parsed = {}
 
         actions_taken = []
         for action in parsed.get("actions", []):
             try:
-                taken = await _execute_action(agent, action)
+                taken = await _execute_action(agent, action, settings)
                 if taken: actions_taken.append(taken)
             except Exception as e:
                 logger.warning(f"Action error {agent['name']}: {e}")
@@ -1179,48 +743,39 @@ async def run_agent_heartbeat(agent_id: str) -> dict:
             await db.execute(
                 "INSERT INTO agent_heartbeat_log (id,agent_id,ran_at,result_type,summary,actions_json) VALUES (?,?,?,?,?,?)",
                 (hid, agent_id, datetime.utcnow().isoformat(), "ok",
-                 parsed.get("summary","Heartbeat complete")[:500],
-                 json.dumps(actions_taken[:20]))
-            )
-            await db.execute("UPDATE agents SET last_heartbeat=? WHERE id=?",
-                             (datetime.utcnow().isoformat(), agent_id))
+                 parsed.get("summary","Heartbeat complete")[:500], json.dumps(actions_taken[:20])))
+            await db.execute("UPDATE agents SET last_heartbeat=? WHERE id=?", (datetime.utcnow().isoformat(), agent_id))
             await db.commit()
 
-        return {"ok": True, "agent": agent["name"], "summary": parsed.get("summary",""),
-                "actions_taken": actions_taken}
+        return {"ok": True, "agent": agent["name"], "summary": parsed.get("summary",""), "actions_taken": actions_taken}
 
     except Exception as e:
         logger.error(f"Heartbeat error {agent.get('name','?')}: {e}")
         async with aiosqlite.connect(DB_PATH) as db:
-            hid = str(uuid.uuid4())
             await db.execute(
                 "INSERT INTO agent_heartbeat_log (id,agent_id,ran_at,result_type,summary) VALUES (?,?,?,?,?)",
-                (hid, agent_id, datetime.utcnow().isoformat(), "error", str(e)[:400])
-            )
+                (str(uuid.uuid4()), agent_id, datetime.utcnow().isoformat(), "error", str(e)[:400]))
             await db.commit()
         return {"ok": False, "error": str(e)}
 
 
-async def _execute_action(agent: dict, action: dict) -> Optional[str]:
-    """Execute a heartbeat action. Proxies to execute_chat_tool for shared tools."""
+# ── Execute heartbeat action ───────────────────────────────────────────────────
+
+async def _execute_action(agent: dict, action: dict, settings: dict = None) -> Optional[str]:
     atype  = action.get("type")
     dept   = agent["dept_id"]
     aid    = agent["id"]
     is_ceo = bool(agent.get("is_ceo"))
 
-    # Many actions are identical to chat tools — proxy them
-    tool_map = {
-        "send_mail":              ("send_mail", {"to_dept": action.get("to_dept","STR"), "subject": action.get("subject",""), "body": action.get("body",""), "priority": action.get("priority","normal")}),
-        "send_to_founder":        ("send_to_founder", {"subject": action.get("subject",""), "body": action.get("body",""), "priority": action.get("priority","high"), "requires_decision": action.get("requires_decision",False)}),
-        "archive_mail":           ("delete_mail", {"mail_id": action.get("mail_id","")}),
-        "update_project":         ("update_project", {"project_name": action.get("project_name",""), "status": action.get("status"), "priority": action.get("priority")}),
-        "invoke_subordinates":    None,  # handled below
-        "weekly_report":          None,
-        "hire_agent":             ("hire_agent", {k: action.get(k,"") for k in ["name","role","title","personality","tone","reason"]}),
+    simple_map = {
+        "send_mail":       ("send_mail",       {"to_dept":action.get("to_dept","STR"),"subject":action.get("subject",""),"body":action.get("body",""),"priority":action.get("priority","normal")}),
+        "send_to_founder": ("send_to_founder",  {"subject":action.get("subject",""),"body":action.get("body",""),"priority":action.get("priority","high"),"requires_decision":action.get("requires_decision",False)}),
+        "archive_mail":    ("delete_mail",      {"mail_id":action.get("mail_id","")}),
+        "update_project":  ("update_project",   {"project_name":action.get("project_name",""),"status":action.get("status"),"priority":action.get("priority")}),
+        "hire_agent":      ("hire_agent",        {k:action.get(k,"") for k in ["name","role","title","personality","tone","reason"]}),
     }
-
-    if atype in tool_map and tool_map[atype] is not None:
-        t, p = tool_map[atype]
+    if atype in simple_map:
+        t, p = simple_map[atype]
         return await execute_chat_tool(t, p, agent)
 
     async with aiosqlite.connect(DB_PATH) as db:
@@ -1228,115 +783,91 @@ async def _execute_action(agent: dict, action: dict) -> Optional[str]:
 
         if atype == "create_draft_endeavor":
             ename = action.get("name","").strip()
-            # Dedup: check active endeavors and pending drafts
-            async with db.execute(
-                "SELECT id,name FROM endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='active' LIMIT 1",
-                (dept, f"%{ename[:20]}%")
-            ) as cur:
-                existing_real = await cur.fetchone()
-            if existing_real:
-                return f"Endeavor '{dict(existing_real)['name']}' already active — skipped duplicate"
-            async with db.execute(
-                "SELECT id,name FROM draft_endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='pending' LIMIT 1",
-                (dept, f"%{ename[:20]}%")
-            ) as cur:
-                existing_draft = await cur.fetchone()
-            if existing_draft:
-                return f"Draft endeavor '{dict(existing_draft)['name']}' already pending — skipped duplicate"
+            async with db.execute("SELECT id,name FROM endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='active' LIMIT 1", (dept, f"%{ename[:20]}%")) as cur:
+                ex = await cur.fetchone()
+            if ex: return f"Endeavor '{dict(ex)['name']}' already active — skipped"
+            async with db.execute("SELECT id,name FROM draft_endeavors WHERE dept_id=? AND LOWER(name) LIKE LOWER(?) AND status='pending' LIMIT 1", (dept, f"%{ename[:20]}%")) as cur:
+                ex = await cur.fetchone()
+            if ex: return f"Draft endeavor '{dict(ex)['name']}' already pending — skipped"
             eid = str(uuid.uuid4())
-            await db.execute(
-                "INSERT INTO draft_endeavors (id,created_by,dept_id,name,description,phases_json) VALUES (?,?,?,?,?,?)",
-                (eid, aid, dept, ename, action.get("description",""), json.dumps(action.get("phases",[])))
-            )
+            await db.execute("INSERT INTO draft_endeavors (id,created_by,dept_id,name,description,phases_json) VALUES (?,?,?,?,?,?)",
+                (eid, aid, dept, ename, action.get("description",""), json.dumps(action.get("phases",[]))))
             await db.commit()
             return f"Draft endeavor proposed: {ename}"
 
         elif atype == "create_draft":
-            title    = action.get("title","Draft")
-            keywords = [w for w in title.lower().split() if len(w) > 3][:5]
-            existing = await _check_existing_draft_raw(db, dept, keywords)
-            if existing:
-                new_content = (existing.get("content","") or "") + "\n\n---\n\n" + action.get("content","")
-                await db.execute("UPDATE drafts SET content=?, status='pending' WHERE id=?",
-                                 (new_content, existing["id"]))
+            title = action.get("title","Draft")
+            kw    = [w for w in title.lower().split() if len(w) > 3][:5]
+            ex    = await _check_existing_draft_raw(db, dept, kw)
+            if ex:
+                new_c = (ex.get("content","") or "") + "\n\n---\n\n" + action.get("content","")
+                await db.execute("UPDATE drafts SET content=?,status='pending' WHERE id=?", (new_c, ex["id"]))
                 await db.commit()
-                return f"Appended to existing '{existing['title']}'"
+                return f"Appended to '{ex['title']}'"
             did = str(uuid.uuid4())
             await db.execute(
                 "INSERT INTO drafts (id,dept_id,title,content,draft_type,priority,status,created_by_agent) VALUES (?,?,?,?,?,?,?,?)",
-                (did, dept, title, action.get("content",""),
-                 action.get("draft_type","memo"), action.get("priority","normal"), "pending", aid)
-            )
+                (did, dept, title, action.get("content",""), action.get("draft_type","memo"), action.get("priority","normal"), "pending", aid))
             await db.commit()
             return f"Created draft: {title[:60]}"
 
         elif atype == "update_existing_draft":
-            draft_id = action.get("draft_id")
-            if not draft_id: return None
-            async with db.execute("SELECT content FROM drafts WHERE id=?", (draft_id,)) as cur:
+            did = action.get("draft_id")
+            if not did: return None
+            async with db.execute("SELECT content FROM drafts WHERE id=?", (did,)) as cur:
                 row = await cur.fetchone()
             if not row: return None
             final = (row["content"] or "") + "\n\n---\n\n" + action.get("content","") if action.get("append") else action.get("content", row["content"])
-            new_title = action.get("title")
-            if new_title:
-                await db.execute("UPDATE drafts SET content=?,title=?,status='pending' WHERE id=?", (final, new_title, draft_id))
+            if action.get("title"):
+                await db.execute("UPDATE drafts SET content=?,title=?,status='pending' WHERE id=?", (final, action["title"], did))
             else:
-                await db.execute("UPDATE drafts SET content=? WHERE id=?", (final, draft_id))
+                await db.execute("UPDATE drafts SET content=? WHERE id=?", (final, did))
             await db.commit()
-            return f"Updated draft {draft_id[:12]}"
+            return f"Updated draft {did[:12]}"
 
         elif atype == "revert_approved_draft":
-            draft_id = action.get("draft_id")
-            if not draft_id: return None
-            await db.execute("UPDATE drafts SET status='pending' WHERE id=?", (draft_id,))
+            did = action.get("draft_id")
+            if not did: return None
+            await db.execute("UPDATE drafts SET status='pending' WHERE id=?", (did,))
             await db.commit()
-            return f"Reverted draft {draft_id[:12]} to pending"
+            return f"Reverted {did[:12]}"
 
         elif atype == "approve_draft" and is_ceo:
-            draft_id = action.get("draft_id")
-            if not draft_id: return None
-            async with db.execute("SELECT status FROM drafts WHERE id=?", (draft_id,)) as cur:
+            did = action.get("draft_id")
+            if not did: return None
+            async with db.execute("SELECT status FROM drafts WHERE id=?", (did,)) as cur:
                 row = await cur.fetchone()
             if row and row["status"] == "revised":
-                return f"Cannot approve revised draft {draft_id[:12]} — must be re-reviewed first"
+                return f"Cannot approve revised draft {did[:12]}"
             ts = datetime.utcnow().isoformat()
-            await db.execute(
-                "UPDATE drafts SET status='approved',reviewed_by=?,reviewed_at=? WHERE id=? AND dept_id=?",
-                (agent.get("name","CEO"), ts, draft_id, dept)
-            )
-            did = str(uuid.uuid4())
-            await db.execute(
-                "INSERT INTO ceo_decisions (id,ceo_agent_id,dept_id,decision_type,target_id,decision,notes) VALUES (?,?,?,?,?,?,?)",
-                (did, aid, dept, "approve_draft", draft_id, "approved", action.get("notes",""))
-            )
+            notes = action.get("notes","")
+            await db.execute("UPDATE drafts SET status='approved',reviewed_by=?,reviewed_at=?,review_notes=? WHERE id=? AND dept_id=?",
+                (agent.get("name","CEO"), ts, notes, did, dept))
+            await db.execute("INSERT INTO ceo_decisions (id,ceo_agent_id,dept_id,decision_type,target_id,decision,notes) VALUES (?,?,?,?,?,?,?)",
+                (str(uuid.uuid4()), aid, dept, "approve_draft", did, "approved", notes))
             await db.commit()
-            return f"CEO approved draft {draft_id[:12]}"
+            return f"CEO approved {did[:12]}"
 
         elif atype == "reject_draft" and is_ceo:
-            draft_id = action.get("draft_id")
-            if not draft_id: return None
+            did = action.get("draft_id")
+            if not did: return None
             ts = datetime.utcnow().isoformat()
-            await db.execute(
-                "UPDATE drafts SET status='rejected',review_notes=?,reviewed_by=?,reviewed_at=? WHERE id=? AND dept_id=?",
-                (action.get("notes",""), agent.get("name","CEO"), ts, draft_id, dept)
-            )
+            await db.execute("UPDATE drafts SET status='rejected',review_notes=?,reviewed_by=?,reviewed_at=? WHERE id=? AND dept_id=?",
+                (action.get("notes",""), agent.get("name","CEO"), ts, did, dept))
             await db.commit()
-            return f"CEO rejected draft {draft_id[:12]}"
+            return f"CEO rejected {did[:12]}"
 
         elif atype == "request_revision":
-            draft_id = action.get("draft_id")
-            notes    = action.get("notes","")
-            if not draft_id: return None
+            did, notes = action.get("draft_id"), action.get("notes","")
+            if not did: return None
             ts = datetime.utcnow().isoformat()
-            async with db.execute("SELECT content FROM drafts WHERE id=?", (draft_id,)) as cur:
+            async with db.execute("SELECT content FROM drafts WHERE id=?", (did,)) as cur:
                 row = await cur.fetchone()
-            note_block = f"\n\n---\n**📝 REVISION REQUEST [{ts[:16]}] by {agent.get('name','')}:**\n{notes}"
-            await db.execute(
-                "UPDATE drafts SET status='revised',review_notes=?,revised_by=?,revised_at=?,content=? WHERE id=?",
-                (notes, agent.get("name",""), ts, (row["content"] if row else "") + note_block, draft_id)
-            )
+            nb = f"\n\n---\n**REVISION [{ts[:16]}] by {agent.get('name','')}:**\n{notes}"
+            await db.execute("UPDATE drafts SET status='revised',review_notes=?,revised_by=?,revised_at=?,content=? WHERE id=?",
+                (notes, agent.get("name",""), ts, (row["content"] if row else "") + nb, did))
             await db.commit()
-            return f"Revision requested on {draft_id[:12]}"
+            return f"Revision requested {did[:12]}"
 
         elif atype == "respond_to_mail":
             mail_id = action.get("mail_id")
@@ -1346,38 +877,27 @@ async def _execute_action(agent: dict, action: dict) -> Optional[str]:
                 orig = await cur.fetchone()
             if orig:
                 body = action.get("reply","")
-                if action.get("important"):
-                    body = _militarize(body, agent)
-                mid = str(uuid.uuid4())
+                if action.get("important"): body = _militarize(body, agent)
                 await db.execute(
                     "INSERT INTO mail_messages (id,from_dept,to_dept,subject,body,priority,thread_id,status) VALUES (?,?,?,?,?,?,?,?)",
-                    (mid, dept, orig["from_dept"], f"RE: {orig['subject']}",
-                     body, "normal", str(uuid.uuid4()), "unread")
-                )
+                    (str(uuid.uuid4()), dept, orig["from_dept"], f"RE: {orig['subject']}", body, "normal", str(uuid.uuid4()), "unread"))
             await db.commit()
             return f"Responded to mail {mail_id[:12]}"
 
         elif atype == "fire_agent" and is_ceo:
-            agent_name = action.get("agent_name","")
-            if not agent_name: return None
-            async with db.execute(
-                "SELECT id FROM agents WHERE name LIKE ? AND dept_id=? AND is_ceo=0", (f"%{agent_name}%", dept)
-            ) as cur:
+            aname = action.get("agent_name","")
+            if not aname: return None
+            async with db.execute("SELECT id FROM agents WHERE name LIKE ? AND dept_id=? AND is_ceo=0", (f"%{aname}%", dept)) as cur:
                 target = await cur.fetchone()
             if target:
                 await db.execute("UPDATE agents SET status='fired' WHERE id=?", (target["id"],))
-                did = str(uuid.uuid4())
-                await db.execute(
-                    "INSERT INTO ceo_decisions (id,ceo_agent_id,dept_id,decision_type,target_id,decision,notes) VALUES (?,?,?,?,?,?,?)",
-                    (did, aid, dept, "fire_agent", target["id"], "fired", action.get("reason",""))
-                )
+                await db.execute("INSERT INTO ceo_decisions (id,ceo_agent_id,dept_id,decision_type,target_id,decision,notes) VALUES (?,?,?,?,?,?,?)",
+                    (str(uuid.uuid4()), aid, dept, "fire_agent", target["id"], "fired", action.get("reason","")))
                 await db.commit()
-                return f"CEO fired: {agent_name}"
+                return f"CEO fired: {aname}"
 
         elif atype == "invoke_subordinates":
-            async with db.execute(
-                "SELECT id,name FROM agents WHERE parent_agent_id=? AND status='active'", (aid,)
-            ) as cur:
+            async with db.execute("SELECT id,name FROM agents WHERE parent_agent_id=? AND status='active'", (aid,)) as cur:
                 subs = [dict(r) for r in await cur.fetchall()]
             invoked = []
             for s in subs:
@@ -1386,26 +906,20 @@ async def _execute_action(agent: dict, action: dict) -> Optional[str]:
                     invoked.append(s["name"])
                 except Exception as e:
                     logger.warning(f"Failed to invoke {s['name']}: {e}")
-            return f"Invoked {len(invoked)} subordinates: {', '.join(invoked)}"
+            return f"Invoked {len(invoked)}: {', '.join(invoked)}"
 
         elif atype == "weekly_report":
             content    = action.get("content","")
             week_start = date.today().strftime("%Y-W%W")
             title      = f"Weekly Status Report — {dept} — {week_start}"
-            async with db.execute(
-                "SELECT id FROM drafts WHERE dept_id=? AND draft_type='weekly_report' AND title LIKE ?",
-                (dept, f"%{week_start}%")
-            ) as cur:
-                existing = await cur.fetchone()
-            if existing:
-                await db.execute("UPDATE drafts SET content=?,status='pending' WHERE id=?",
-                                 (content, existing["id"]))
+            async with db.execute("SELECT id FROM drafts WHERE dept_id=? AND draft_type='weekly_report' AND title LIKE ?", (dept, f"%{week_start}%")) as cur:
+                ex = await cur.fetchone()
+            if ex:
+                await db.execute("UPDATE drafts SET content=?,status='pending' WHERE id=?", (content, ex["id"]))
             else:
                 did = str(uuid.uuid4())
-                await db.execute(
-                    "INSERT INTO drafts (id,dept_id,title,content,draft_type,priority,status,created_by_agent) VALUES (?,?,?,?,?,?,?,?)",
-                    (did, dept, title, content, "weekly_report", "high", "pending", aid)
-                )
+                await db.execute("INSERT INTO drafts (id,dept_id,title,content,draft_type,priority,status,created_by_agent) VALUES (?,?,?,?,?,?,?,?)",
+                    (did, dept, title, content, "weekly_report", "high", "pending", aid))
             await db.commit()
             return f"Weekly report submitted: {title}"
 
@@ -1427,20 +941,14 @@ def _militarize(body: str, agent: dict) -> str:
 
 
 async def run_department_cycle(dept_id: str) -> dict:
-    """Run CEO first, then all direct reports (L2)."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT id,name FROM agents WHERE dept_id=? AND is_ceo=1 AND status='active'",
-            (dept_id.upper(),)
-        ) as cur:
+        async with db.execute("SELECT id,name FROM agents WHERE dept_id=? AND is_ceo=1 AND status='active'", (dept_id.upper(),)) as cur:
             ceo = dict(await cur.fetchone() or {})
         ceo_id = ceo.get("id")
         l2 = []
         if ceo_id:
-            async with db.execute(
-                "SELECT id,name FROM agents WHERE parent_agent_id=? AND status='active'", (ceo_id,)
-            ) as cur:
+            async with db.execute("SELECT id,name FROM agents WHERE parent_agent_id=? AND status='active'", (ceo_id,)) as cur:
                 l2 = [dict(r) for r in await cur.fetchall()]
 
     results = []
