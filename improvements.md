@@ -347,3 +347,18 @@ I have done a lot of modifications. Continue and also correct the following:
     -- {{other_department_points}}  
   - also ensure that when a department has negative budget, it can't do anything that costs points.
   - Add points loan with interest rate which may be sold in the marketplace (I can offer them, as well as other departments at interest rate and budget of choosing)
+
+I've implemented a few things since we talked, Notably :
+- a loan market which departments (and Founder) can use to:
+  - lend money to other department with interest rate of their choosing, capital, etc/
+  => task: add option to just place an offer on the market without a definite borrower.
+  => money is deducted from borrower (except founder) unless he retracts offer.
+  => if loan is accepted by any department, it is automatically granted.
+- let me fire CEOs either by:
+  => putting them on market place 
+  => Demoting them 
+  NEXT: PRESENT OPTIONS FOR SUCCESSION FOR CEO, either:
+    - senior agent (level then the oldest if more than one)
+    - let me pick one from department.
+- Add tools for agents to lend or borrow money
+  

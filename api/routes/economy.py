@@ -13,7 +13,8 @@ from core.economy import (
     _load_points_config, _save_points_config,
     _DEFAULT_COSTS, COST_LABELS, AWARD_EVENTS,
     create_loan, repay_loan, list_loans, list_market_loans,
-    InsufficientPointsError,
+    create_loan_offer, retract_loan_offer, accept_loan_offer, list_loan_offers,
+    get_loan_summary, InsufficientPointsError,
 )
 
 router = APIRouter(tags=["economy"])
@@ -197,6 +198,32 @@ async def buy_loan(
         await db.commit()
     return {"ok": True, "new_lender": buyer_dept}
 
+
+@router.post("/api/economy/loan-offers")
+async def post_loan_offer(
+    lender_dept:   str   = Body(...),
+    principal:     int   = Body(...),
+    interest_rate: float = Body(0.10),
+    due_days:      int   = Body(30),
+    description:   str   = Body(""),
+):
+    try:
+        oid = await create_loan_offer(lender_dept.upper(), principal, interest_rate, due_days, description)
+        return {"ok": True, "offer_id": oid}
+    except InsufficientPointsError as e:
+        return {"error": str(e)}
+
+@router.get("/api/economy/loan-offers")
+async def get_loan_offers(status: str = "open"):
+    return await list_loan_offers(status)
+
+@router.post("/api/economy/loan-offers/{oid}/accept")
+async def accept_offer(oid: str, borrower_dept: str = Body(..., embed=True)):
+    return await accept_loan_offer(oid, borrower_dept.upper())
+
+@router.post("/api/economy/loan-offers/{oid}/retract")
+async def retract_offer(oid: str):
+    return await retract_loan_offer(oid)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  MARKETPLACE
