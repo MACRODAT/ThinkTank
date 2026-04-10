@@ -794,3 +794,161 @@ async def update_heartbeat_interval(
         await db.execute("UPDATE agents SET heartbeat_interval=? WHERE id=?", (interval, aid))
         await db.commit()
     return {"ok": True, "interval": interval}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CEO MANAGEMENT — fire, demote, promote, succession
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/api/agents/{aid}/demote-ceo")
+async def demote_ceo(
+    aid:         str,
+    new_role:    str           = Body("senior"),
+    new_title:   str           = Body(""),
+    new_level:   int           = Body(2),
+    list_price:  Optional[int] = Body(None),   # if set, list on marketplace
+):
+    """
+    Demote a CEO to a lower rank. Optionally list them in marketplace.
+    Does NOT fire — they remain active in the dept at lower hierarchy.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM agents WHERE id=?", (aid,)) as cur:
+            agent = _row(await cur.fetchone())
+        if not agent:
+            return {"error": "Agent not found"}
+        if not agent["is_ceo"]:
+            return {"error": "Agent is not a CEO"}
+
+        await db.execute(
+            "UPDATE agents SET is_ceo=0, role=?, title=?, hierarchy_level=? WHERE id=?",
+            (new_role, new_title or agent["title"], new_level, aid)
+        )
+
+        listing_id = None
+        if list_price is not None:
+            lid = str(uuid.uuid4())
+            # Remove any existing listing
+            await db.execute("UPDATE marketplace_agents SET for_sale=0 WHERE agent_id=?", (aid,))
+            await db.execute(
+                "INSERT INTO marketplace_agents (id,agent_id,seller_dept,price,for_sale) VALUES (?,?,?,?,1)",
+                (lid, aid, agent["dept_id"], list_price)
+            )
+            await db.execute("UPDATE agents SET status='marketplace' WHERE id=?", (aid,))
+            listing_id = lid
+        await db.commit()
+
+    return {"ok": True, "agent_id": aid, "listing_id": listing_id,
+            "was_ceo": True, "new_role": new_role}
+
+
+@router.post("/api/agents/{aid}/promote-to-ceo")
+async def promote_to_ceo(
+    aid:     str,
+    dept_id: str = Body(...),
+):
+    """
+    Promote an existing agent to CEO of their department.
+    Demotes current CEO first (if any exists).
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        # Verify target agent exists and is in dept
+        async with db.execute("SELECT * FROM agents WHERE id=? AND dept_id=?", (aid, dept_id.upper())) as cur:
+            agent = _row(await cur.fetchone())
+        if not agent:
+            return {"error": "Agent not found in that department"}
+
+        # Demote current CEO if exists
+        async with db.execute(
+            "SELECT id FROM agents WHERE dept_id=? AND is_ceo=1 AND status='active'",
+            (dept_id.upper(),)
+        ) as cur:
+            old_ceo = _row(await cur.fetchone())
+
+        if old_ceo and old_ceo["id"] != aid:
+            await db.execute(
+                "UPDATE agents SET is_ceo=0, role='senior', hierarchy_level=2 WHERE id=?",
+                (old_ceo["id"],)
+            )
+
+        # Promote
+        await db.execute(
+            "UPDATE agents SET is_ceo=1, role='ceo', hierarchy_level=1, status='active' WHERE id=?",
+            (aid,)
+        )
+        await db.commit()
+
+    return {"ok": True, "new_ceo_id": aid, "old_ceo_id": old_ceo["id"] if old_ceo else None}
+
+
+@router.post("/api/agents/spawn-ceo")
+async def spawn_new_ceo(
+    dept_id:     str = Body(...),
+    name:        str = Body(...),
+    title:       str = Body(""),
+    personality: str = Body(""),
+    tone:        str = Body(""),
+    model_override: str = Body(""),
+):
+    """
+    Spawn a brand new agent directly as CEO of a department.
+    Demotes existing CEO first if present.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        # Demote existing CEO
+        async with db.execute(
+            "SELECT id FROM agents WHERE dept_id=? AND is_ceo=1 AND status='active'",
+            (dept_id.upper(),)
+        ) as cur:
+            old_ceo = _row(await cur.fetchone())
+        if old_ceo:
+            await db.execute(
+                "UPDATE agents SET is_ceo=0, role='senior', hierarchy_level=2 WHERE id=?",
+                (old_ceo["id"],)
+            )
+
+        new_id = str(uuid.uuid4())
+        await db.execute("""
+            INSERT INTO agents
+            (id,dept_id,name,role,title,is_ceo,hierarchy_level,status,
+             personality,tone,heartbeat_interval,model_override,created_by)
+            VALUES (?,?,?,?,?,1,1,'active',?,?,5,?,'founder')
+        """, (new_id, dept_id.upper(), name, "ceo", title,
+               personality, tone, model_override))
+        await db.commit()
+
+    return {"ok": True, "new_ceo_id": new_id, "old_ceo_id": old_ceo["id"] if old_ceo else None}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CEO CUSTOM INSTRUCTIONS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/api/agents/{aid}/ceo-instructions")
+async def set_ceo_instructions(
+    aid:          str,
+    instructions: str = Body(..., embed=True),
+    visible:      int = Body(1, embed=True),
+):
+    """Set CEO's custom injected instructions for this agent (visible=1 means agent can see them)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE agents SET ceo_instructions=?, ceo_instructions_visible=? WHERE id=?",
+            (instructions, visible, aid)
+        )
+        await db.commit()
+    return {"ok": True}
+
+
+@router.delete("/api/agents/{aid}/ceo-instructions")
+async def clear_ceo_instructions(aid: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE agents SET ceo_instructions='' WHERE id=?", (aid,))
+        await db.commit()
+    return {"ok": True}
+

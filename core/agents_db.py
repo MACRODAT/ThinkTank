@@ -170,6 +170,9 @@ async def init_agents_db():
             ("drafts",             "created_by_agent","ALTER TABLE drafts ADD COLUMN created_by_agent TEXT DEFAULT ''"),
             ("mail_messages",      "topic_id",       "ALTER TABLE mail_messages ADD COLUMN topic_id TEXT DEFAULT ''"),
             ("projects",           "topic_id",       "ALTER TABLE projects ADD COLUMN topic_id TEXT DEFAULT ''"),
+            # CEO custom instructions — injected into agent prompts by their CEO
+            ("agents",             "ceo_instructions","ALTER TABLE agents ADD COLUMN ceo_instructions TEXT DEFAULT ''"),
+            ("agents",             "ceo_instructions_visible","ALTER TABLE agents ADD COLUMN ceo_instructions_visible INTEGER DEFAULT 1"),
         ]
         for table, column, sql in migrations:
             try:

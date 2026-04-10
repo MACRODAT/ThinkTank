@@ -145,7 +145,9 @@ _TOOLS_TABLE = """
 | get_my_points | | Check your department's current point balance |
 | get_points_ledger | | View last 10 point transactions for your department |
 | ceo_adjust_heartbeat | agent_id, interval | CEO only: Set heartbeat interval for a subordinate |
+| ceo_modify_heartbeat | agent_id, interval | CEO only: Alias for ceo_adjust_heartbeat |
 | ceo_modify_agent | agent_id, personality?, tone? | CEO only: Modify agent personality/tone |
+| inject_instructions | agent_id, instructions, visible? | CEO only: Set custom instructions for a subordinate agent (visible=true by default) |
 | ceo_list_market_agents | | CEO only: View available agents in marketplace |
 
 **HIERARCHY:** Only act on agents reporting to you.
@@ -208,6 +210,14 @@ def _build_system_prompt(agent: dict, chat_mode: bool = False,
         parts.append("\n## Your Skills & Knowledge Files")
         for f in agent["md_files"]:
             parts.append(f"\n### [{f['category']}] {f['filename']}\n{f['content']}")
+
+    # CEO custom instructions injected into this agent's prompt
+    ceo_instr = agent.get("ceo_instructions", "").strip()
+    if ceo_instr:
+        visible_flag = agent.get("ceo_instructions_visible", 1)
+        parts.append(f"\n## Instructions from Your Department CEO\n{ceo_instr}")
+        if visible_flag:
+            parts.append("*(These instructions are visible to you and were set by your CEO)*")
 
     if is_ceo:
         rule = settings.get("prompt_ceo_authority", "").strip()
@@ -329,12 +339,24 @@ async def execute_chat_tool(tool: str, params: dict, agent: dict) -> str:
             return "CEO only."
         target_id = params.get("agent_id", "")
         interval  = int(params.get("interval", 5))
+        if not target_id:
+            return "Error: agent_id is required."
+        if interval < 1 or interval > 9999:
+            return "Error: interval must be between 1 and 9999."
         try:
             async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute("UPDATE agents SET heartbeat_interval=? WHERE id=? AND dept_id=?",
-                                 (interval, target_id, dept_id))
+                # Verify the target agent exists and is in same dept (no AND dept_id= to avoid silent failures)
+                db.row_factory = aiosqlite.Row
+                async with db.execute("SELECT id, name, dept_id FROM agents WHERE id=?", (target_id,)) as cur:
+                    target_row = await cur.fetchone()
+                if not target_row:
+                    return f"Agent {target_id[:8]} not found."
+                if target_row["dept_id"].upper() != dept_id.upper():
+                    return f"Cannot modify heartbeat of agent in another department."
+                await db.execute("UPDATE agents SET heartbeat_interval=? WHERE id=?",
+                                 (interval, target_id))
                 await db.commit()
-            return f"Heartbeat interval set to {interval} for agent {target_id[:8]}"
+            return f"✓ Heartbeat interval for {target_row['name']} set to {interval} cycles."
         except Exception as e:
             return f"Error: {e}"
 
@@ -347,13 +369,59 @@ async def execute_chat_tool(tool: str, params: dict, agent: dict) -> str:
         try:
             async with aiosqlite.connect(DB_PATH) as db:
                 if personality:
-                    await db.execute("UPDATE agents SET personality=? WHERE id=? AND dept_id=?",
-                                     (personality, target_id, dept_id))
+                    await db.execute("UPDATE agents SET personality=? WHERE id=?",
+                                     (personality, target_id))
                 if tone:
-                    await db.execute("UPDATE agents SET tone=? WHERE id=? AND dept_id=?",
-                                     (tone, target_id, dept_id))
+                    await db.execute("UPDATE agents SET tone=? WHERE id=?",
+                                     (tone, target_id))
                 await db.commit()
-            return f"Agent {target_id[:8]} updated."
+            return f"Agent {target_id[:8]} personality/tone updated."
+        except Exception as e:
+            return f"Error: {e}"
+
+    # Alias: ceo_modify_heartbeat → ceo_adjust_heartbeat
+    if tool == "ceo_modify_heartbeat":
+        params["agent_id"] = params.get("agent_id", "")
+        tool = "ceo_adjust_heartbeat"
+        # Falls through to next block — re-invoke recursively
+        return await execute_chat_tool("ceo_adjust_heartbeat", params, agent)
+
+    if tool == "inject_instructions":
+        if not is_ceo:
+            return "CEO only — only CEOs can inject instructions into agents."
+        target_id    = params.get("agent_id", "")
+        instructions = params.get("instructions", "").strip()
+        visible      = int(params.get("visible", 1))
+        if not target_id or not instructions:
+            return "Error: agent_id and instructions are required."
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute("SELECT id, name, dept_id FROM agents WHERE id=?", (target_id,)) as cur:
+                    target_row = await cur.fetchone()
+                if not target_row:
+                    return f"Agent {target_id[:8]} not found."
+                if target_row["dept_id"].upper() != dept_id.upper():
+                    return "Cannot inject instructions to agent in another department."
+                await db.execute(
+                    "UPDATE agents SET ceo_instructions=?, ceo_instructions_visible=? WHERE id=?",
+                    (instructions, visible, target_id)
+                )
+                await db.commit()
+            visibility_note = "visible to the agent" if visible else "hidden (injected silently)"
+            return f"✓ Instructions injected into {target_row['name']} ({visibility_note}):\n\n{instructions[:200]}"
+        except Exception as e:
+            return f"Error: {e}"
+
+    if tool == "clear_instructions":
+        if not is_ceo:
+            return "CEO only."
+        target_id = params.get("agent_id", "")
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE agents SET ceo_instructions='' WHERE id=?", (target_id,))
+                await db.commit()
+            return f"✓ Instructions cleared for agent {target_id[:8]}."
         except Exception as e:
             return f"Error: {e}"
 
