@@ -250,7 +250,19 @@ async def award(dept_id: str, event: str, points: int,
 
 async def deduct(dept_id: str, event: str, points: int,
                  note: str = "", ref_id: str = "", agent_id: str = "") -> int:
+    """Deduct points. Raises InsufficientPointsError if balance would go below -50 (buffer for loans)."""
+    bal = await get_balance(dept_id)
+    # Allow slight negative (up to -50) as buffer, but block deeply negative depts
+    if points > 0 and bal < 0 and event not in ("weekly_allocation", "founder_award", "transfer_in",
+                                                   "loan_repayment", "loan_disbursement", "mail_fee_recv"):
+        raise InsufficientPointsError(
+            f"{dept_id} has {bal} pts (negative budget). Cannot spend {points} pts on '{event}'."
+        )
     return await transact(dept_id, event, points, note, ref_id, agent_id)
+
+
+class InsufficientPointsError(Exception):
+    pass
 
 
 async def get_balance(dept_id: str) -> int:
@@ -378,6 +390,148 @@ async def get_web_search_metrics(limit: int = 100) -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM web_search_log ORDER BY created_at DESC LIMIT ?", (limit,)
+        ) as cur:
+            rows = await cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Loans ─────────────────────────────────────────────────────────────────────
+
+async def _ensure_loans_table():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS point_loans (
+                id              TEXT PRIMARY KEY,
+                lender_dept     TEXT NOT NULL,
+                borrower_dept   TEXT NOT NULL,
+                principal       INTEGER NOT NULL,
+                interest_rate   REAL NOT NULL DEFAULT 0.1,
+                outstanding     INTEGER NOT NULL,
+                status          TEXT DEFAULT 'active',
+                listed_on_market INTEGER DEFAULT 0,
+                market_price    INTEGER DEFAULT 0,
+                due_date        TEXT DEFAULT '',
+                created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
+                repaid_at       TEXT DEFAULT ''
+            )""")
+        # Accrue-interest log
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS loan_accrual_log (
+                loan_id    TEXT NOT NULL,
+                accrued_on TEXT NOT NULL,
+                amount     INTEGER NOT NULL,
+                PRIMARY KEY (loan_id, accrued_on)
+            )""")
+        await db.commit()
+
+
+async def create_loan(lender_dept: str, borrower_dept: str,
+                       principal: int, interest_rate: float = 0.1,
+                       due_date: str = "") -> str:
+    """Lender gives points to borrower. Returns loan ID."""
+    await _ensure_loans_table()
+    # Check lender has enough
+    bal = await get_balance(lender_dept)
+    if bal < principal:
+        raise InsufficientPointsError(f"{lender_dept} only has {bal} pts, cannot lend {principal}")
+    lid = str(uuid.uuid4())
+    # Transfer points
+    await deduct(lender_dept, "loan_disbursement", principal, f"Loan to {borrower_dept}", lid)
+    await transact(borrower_dept, "loan_received", -principal, f"Loan from {lender_dept}", lid)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO point_loans (id,lender_dept,borrower_dept,principal,interest_rate,outstanding,due_date) VALUES (?,?,?,?,?,?,?)",
+            (lid, lender_dept.upper(), borrower_dept.upper(), principal, interest_rate, principal, due_date)
+        )
+        await db.commit()
+    logger.info(f"[LOAN] {lender_dept}→{borrower_dept}: {principal} pts @ {interest_rate*100:.1f}%")
+    return lid
+
+
+async def repay_loan(loan_id: str, amount: int, repayer_dept: str) -> dict:
+    """Partial or full repayment."""
+    await _ensure_loans_table()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM point_loans WHERE id=?", (loan_id,)) as cur:
+            loan = await cur.fetchone()
+    if not loan: return {"error": "Loan not found"}
+    loan = dict(loan)
+    if loan["status"] != "active": return {"error": "Loan already closed"}
+    pay  = min(amount, loan["outstanding"])
+    bal  = await get_balance(repayer_dept)
+    if bal < pay:
+        raise InsufficientPointsError(f"Need {pay} pts to repay, have {bal}")
+    await deduct(repayer_dept, "loan_repayment", pay, f"Repay loan {loan_id[:8]}", loan_id)
+    await transact(loan["lender_dept"], "loan_repayment_recv", -pay, f"Repayment on loan {loan_id[:8]}", loan_id)
+    new_out = loan["outstanding"] - pay
+    async with aiosqlite.connect(DB_PATH) as db:
+        if new_out <= 0:
+            await db.execute("UPDATE point_loans SET outstanding=0, status='repaid', repaid_at=? WHERE id=?",
+                             (datetime.utcnow().isoformat(), loan_id))
+        else:
+            await db.execute("UPDATE point_loans SET outstanding=? WHERE id=?", (new_out, loan_id))
+        await db.commit()
+    return {"ok": True, "paid": pay, "remaining": max(0, new_out)}
+
+
+async def accrue_loan_interest():
+    """Called daily. Adds interest to outstanding loans."""
+    await _ensure_loans_table()
+    today = date.today().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM point_loans WHERE status='active' AND outstanding>0") as cur:
+            loans = [dict(r) for r in await cur.fetchall()]
+    for loan in loans:
+        lid = loan["id"]
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute("SELECT 1 FROM loan_accrual_log WHERE loan_id=? AND accrued_on=?",
+                                   (lid, today)) as cur:
+                already = await cur.fetchone()
+            if already: continue
+            interest = max(1, int(loan["outstanding"] * loan["interest_rate"] / 365))
+            new_out  = loan["outstanding"] + interest
+            await db.execute("INSERT OR IGNORE INTO loan_accrual_log (loan_id,accrued_on,amount) VALUES (?,?,?)",
+                             (lid, today, interest))
+            await db.execute("UPDATE point_loans SET outstanding=? WHERE id=?", (new_out, lid))
+            await db.commit()
+        # Charge borrower the accrued interest
+        await deduct(loan["borrower_dept"], "loan_interest", interest,
+                     f"Daily interest on loan {lid[:8]}", lid)
+        await transact(loan["lender_dept"], "loan_interest_recv", -interest,
+                       f"Interest on loan {lid[:8]}", lid)
+
+
+async def list_loans(dept_id: str) -> list[dict]:
+    await _ensure_loans_table()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM point_loans WHERE lender_dept=? OR borrower_dept=? ORDER BY created_at DESC",
+            (dept_id.upper(), dept_id.upper())
+        ) as cur:
+            rows = await cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+async def get_loan_summary(dept_id: str) -> str:
+    loans = await list_loans(dept_id)
+    borrowed = sum(l["outstanding"] for l in loans if l["borrower_dept"] == dept_id and l["status"] == "active")
+    lent     = sum(l["outstanding"] for l in loans if l["lender_dept"]   == dept_id and l["status"] == "active")
+    parts = []
+    if borrowed: parts.append(f"Owe {borrowed} pts")
+    if lent:     parts.append(f"Lent out {lent} pts")
+    return ", ".join(parts) if parts else "No active loans"
+
+
+async def list_market_loans() -> list[dict]:
+    """Loans listed on the marketplace."""
+    await _ensure_loans_table()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM point_loans WHERE listed_on_market=1 AND status='active' ORDER BY created_at DESC"
         ) as cur:
             rows = await cur.fetchall()
     return [dict(r) for r in rows]

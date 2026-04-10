@@ -87,6 +87,13 @@ def setup_scheduler():
     scheduler.add_job(_overdue_fees, CronTrigger(hour=0, minute=5),
         id='draft_overdue', name='Draft Overdue Fees', replace_existing=True)
 
+    # Daily loan interest accrual
+    async def _loan_interest():
+        from core.economy import accrue_loan_interest
+        await accrue_loan_interest()
+    scheduler.add_job(_loan_interest, CronTrigger(hour=0, minute=10),
+        id='loan_interest', name='Daily Loan Interest', replace_existing=True)
+
     # Daily email digest
     digest_hour = int(getattr(config.email, "digest_hour", 18))
     scheduler.add_job(

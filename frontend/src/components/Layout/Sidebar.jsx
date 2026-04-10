@@ -92,8 +92,10 @@ export default function Sidebar() {
         <NavLink to="/ask"         className={navCls}><span>💬</span> Ask</NavLink>
         <NavLink to="/endeavors"   className={navCls}><span>🚀</span> Endeavors</NavLink>
         <NavLink to="/agents"      className={navCls}><span>🤖</span> Agents</NavLink>
-        <NavLink to="/economy"     className={navCls}><span>💰</span> Economy</NavLink>
-        <NavLink to="/marketplace" className={navCls}><span>🏪</span> Marketplace</NavLink>
+        <NavLink to="/economy"          className={navCls}><span>💰</span> Economy</NavLink>
+        <NavLink to="/economy/config"   className={navCls} style={{ paddingLeft:28, fontSize:12 }}><span>⚙</span> Points Config</NavLink>
+        <NavLink to="/economy/loans"    className={navCls} style={{ paddingLeft:28, fontSize:12 }}><span>🏦</span> Loans</NavLink>
+        <NavLink to="/marketplace"      className={navCls}><span>🏪</span> Marketplace</NavLink>
       </nav>
 
       <nav className="nav-section">

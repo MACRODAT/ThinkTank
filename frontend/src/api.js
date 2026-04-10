@@ -30,6 +30,8 @@ export const getAllMail   = (limit=100) => req(`/mail?limit=${limit}`)
 export const getInbox     = (deptId, status='unread') => req(`/mail/${deptId}/inbox?status=${status}`)
 export const getDeptMail  = (deptId, limit=50)        => req(`/mail/${deptId}/all?limit=${limit}`)
 export const getThread    = (threadId) => req(`/mail/thread/${threadId}`)
+export const getMailChain = (mailId)   => req(`/mail/chain/${mailId}`)
+export const getMailById  = (mailId)   => req(`/mail/message/${mailId}`)
 export const markRead     = (mailId)   => req(`/mail/${mailId}/read`,  { method: 'POST' })
 export const sendMail     = (body)     => req('/mail/send',            { method: 'POST', body })
 
@@ -146,6 +148,16 @@ export const getDeptLedger         = (id, l=100)     => req(`/economy/ledger/${i
 export const economyAdjust         = (body)          => req('/economy/adjust',   { method:'POST', body })
 export const economyTransfer       = (body)          => req('/economy/transfer', { method:'POST', body })
 export const getSearchMetrics      = (l=100)         => req(`/economy/search-metrics?limit=${l}`)
+export const getPointsConfig       = ()              => req('/economy/config')
+export const savePointsConfig      = (body)          => req('/economy/config',   { method:'POST', body })
+
+// Loans
+export const getLoans              = (dept)          => req(`/economy/loans${dept ? '?dept_id='+dept : ''}`)
+export const getMarketLoans        = ()              => req('/economy/loans/market')
+export const createLoan            = (body)          => req('/economy/loans/create', { method:'POST', body })
+export const repayLoan             = (id, body)      => req(`/economy/loans/${id}/repay`, { method:'POST', body })
+export const listLoanOnMarket      = (id, body)      => req(`/economy/loans/${id}/list-market`, { method:'POST', body })
+export const buyLoan               = (id, body)      => req(`/economy/loans/${id}/buy`, { method:'POST', body })
 
 // Marketplace — Agents
 export const getMarketAgents       = ()              => req('/marketplace/agents')

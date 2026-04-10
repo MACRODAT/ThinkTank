@@ -22,6 +22,8 @@ import FounderInbox from './pages/Founder/FounderInbox'
 import PromptsPage from './pages/Settings/PromptsPage'
 import ExtensionsPage from './pages/Extensions/ExtensionsPage'
 import EconomyPage from './pages/Economy/EconomyPage'
+import PointsConfigPage from './pages/Economy/PointsConfigPage'
+import LoansPage from './pages/Economy/LoansPage'
 import MarketplacePage from './pages/Marketplace/MarketplacePage'
 import FilesPage from './pages/Files/FilesPage'
 
@@ -54,6 +56,8 @@ export default function App() {
               <Route path="/prompts"                  element={<PromptsPage />} />
               <Route path="/extensions"               element={<ExtensionsPage />} />
               <Route path="/economy"                  element={<EconomyPage />} />
+              <Route path="/economy/config"           element={<PointsConfigPage />} />
+              <Route path="/economy/loans"            element={<LoansPage />} />
               <Route path="/marketplace"              element={<MarketplacePage />} />
               <Route path="/files"                     element={<FilesPage />} />
             </Routes>

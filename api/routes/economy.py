@@ -12,6 +12,8 @@ from core.economy import (
     get_web_search_metrics,
     _load_points_config, _save_points_config,
     _DEFAULT_COSTS, COST_LABELS, AWARD_EVENTS,
+    create_loan, repay_loan, list_loans, list_market_loans,
+    InsufficientPointsError,
 )
 
 router = APIRouter(tags=["economy"])
@@ -91,6 +93,109 @@ async def save_points_config(request: Request):
     data = await request.json()
     await _save_points_config(data)
     return {"ok": True}
+
+
+# ── Loans ─────────────────────────────────────────────────────────────────────
+
+@router.get("/api/economy/loans")
+async def get_loans(dept_id: Optional[str] = None):
+    if dept_id:
+        return await list_loans(dept_id.upper())
+    return await list_market_loans()
+
+
+@router.get("/api/economy/loans/market")
+async def get_market_loans():
+    return await list_market_loans()
+
+
+@router.post("/api/economy/loans/create")
+async def create_loan_endpoint(
+    lender_dept:   str   = Body(...),
+    borrower_dept: str   = Body(...),
+    principal:     int   = Body(...),
+    interest_rate: float = Body(0.10),
+    due_date:      str   = Body(""),
+    list_on_market: bool = Body(False),
+):
+    try:
+        lid = await create_loan(lender_dept.upper(), borrower_dept.upper(),
+                                 principal, interest_rate, due_date)
+        if list_on_market:
+            import aiosqlite
+            from core.database import DB_PATH
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "UPDATE point_loans SET listed_on_market=1, market_price=? WHERE id=?",
+                    (principal, lid)
+                )
+                await db.commit()
+        return {"ok": True, "loan_id": lid}
+    except InsufficientPointsError as e:
+        return {"error": str(e)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/api/economy/loans/{loan_id}/repay")
+async def repay_loan_endpoint(
+    loan_id:     str,
+    amount:      int = Body(...),
+    repayer_dept:str = Body(...),
+):
+    try:
+        return await repay_loan(loan_id, amount, repayer_dept.upper())
+    except InsufficientPointsError as e:
+        return {"error": str(e)}
+
+
+@router.post("/api/economy/loans/{loan_id}/list-market")
+async def list_loan_on_market(
+    loan_id:      str,
+    market_price: int = Body(...),
+):
+    import aiosqlite
+    from core.database import DB_PATH
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE point_loans SET listed_on_market=1, market_price=? WHERE id=?",
+            (market_price, loan_id)
+        )
+        await db.commit()
+    return {"ok": True}
+
+
+@router.post("/api/economy/loans/{loan_id}/buy")
+async def buy_loan(
+    loan_id:    str,
+    buyer_dept: str = Body(...),
+):
+    """Transfer loan ownership — buyer pays market_price, becomes new lender."""
+    import aiosqlite
+    from core.database import DB_PATH
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM point_loans WHERE id=? AND listed_on_market=1 AND status='active'",
+                               (loan_id,)) as cur:
+            loan = await cur.fetchone()
+    if not loan:
+        return {"error": "Loan not found or not on market"}
+    loan = dict(loan)
+    price = loan["market_price"]
+    try:
+        await deduct(buyer_dept.upper(), "loan_purchase", price,
+                     f"Bought loan {loan_id[:8]}", loan_id)
+        await award(loan["lender_dept"], "loan_sale", price,
+                    f"Sold loan {loan_id[:8]}", loan_id)
+    except InsufficientPointsError as e:
+        return {"error": str(e)}
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE point_loans SET lender_dept=?, listed_on_market=0 WHERE id=?",
+            (buyer_dept.upper(), loan_id)
+        )
+        await db.commit()
+    return {"ok": True, "new_lender": buyer_dept}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

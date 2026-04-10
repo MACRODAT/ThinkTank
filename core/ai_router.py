@@ -114,6 +114,12 @@ async def route_chat(agent_id: str, system_prompt: str, messages: List[Dict]) ->
         pass
 
     if backend == "claude":
+        # Resolve prompt tokens for chat too
+        try:
+            from core.prompt_parser import resolve_prompt
+            system_prompt = await resolve_prompt(system_prompt, dept_id="", agent_id=agent_id)
+        except Exception:
+            pass
         text, thinking = await asyncio.to_thread(
             _call_claude_sync, api_key, c_model, system_prompt, messages
         )
@@ -149,6 +155,17 @@ async def route(task_type: str, system_prompt: str, user_prompt: str,
 
     if custom_prompt:
         system_prompt = system_prompt + "\n\n---\nADDITIONAL INSTRUCTIONS:\n" + custom_prompt
+
+    # Resolve {{placeholder}} tokens
+    try:
+        from core.prompt_parser import resolve_prompt
+        system_prompt = await resolve_prompt(system_prompt, dept_id=dept_id or "")
+        messages = [
+            {**m, "content": await resolve_prompt(m["content"], dept_id=dept_id or "")}
+            for m in messages
+        ]
+    except Exception as _pp_err:
+        logger.warning(f"Prompt parsing failed: {_pp_err}")
 
     use_claude = force_claude or backend == "claude"
 
