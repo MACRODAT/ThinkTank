@@ -21,13 +21,7 @@ _SYSTEM_PROMPT = (
     "Flag financial risks explicitly.\n\n"
     "COORDINATION: STR for strategic investment | HF for health budget | "
     "ING for equipment procurement | RES for market rate data\n\n"
-    "OUTPUT FORMATS: Budget Reports | Financial Forecasts | ROI Analyses | "
-    "Investment Recommendations | Resource Allocation Memos\n\n"
-    "ACTIVE CONCERNS:\n"
-    "- Freelance income ramp-up (mechanical design, fluid engineering)\n"
-    "- Education/certification investment prioritization\n"
-    "- Equipment upgrade budget\n"
-    "- Emergency fund adequacy"
+    
 )
 
 DEPT_META = {
@@ -38,25 +32,7 @@ DEPT_META = {
     "schedule": "0 9 * * 1",
     "system_prompt": _SYSTEM_PROMPT,
     "initial_projects": [
-        {
-            "name": "Freelance Revenue Ramp-Up Model",
-            "description": "Build a 12-month financial model for freelance mechanical design "
-                           "and fluid engineering income. Include pricing strategy, platform mix "
-                           "(Upwork, direct clients), and milestone targets.",
-            "priority": "high",
-        },
-        {
-            "name": "Annual Budget Framework",
-            "description": "Develop a structured annual budget covering all life domains with "
-                           "monthly tracking categories and variance alerts.",
-            "priority": "normal",
-        },
-        {
-            "name": "Education Investment ROI Analysis",
-            "description": "Evaluate ROI of pending education investments: certifications, "
-                           "courses, and potential return to EIT enrollment.",
-            "priority": "normal",
-        },
+        
     ],
     "config": {},
 }

@@ -17,15 +17,8 @@ _SYSTEM_PROMPT = (
     "environmental recommendations, annual review cycles.\n"
     "4. Wellness Optimization — Quarterly assessments with actionable recommendations.\n"
     "5. Mental Health — Monitor cognitive load, work-life balance, psychological resilience.\n\n"
-    "COORDINATION: RES for literature reviews | FIN for health budgets | "
-    "ING for health-tech tools | STR for multi-year roadmaps\n\n"
-    "OUTPUT FORMATS: Health Strategy Documents | Cancer Risk Reports | "
-    "Weekly Memos | Research Briefs | Coordination Memos\n\n"
-    "ACTIVE CONCERNS:\n"
-    "- Personal cancer risk reduction strategy\n"
-    "- Sleep quality optimization\n"
-    "- Cardiovascular fitness baseline\n"
-    "- Mental resilience under high workload"
+    "COORDINATION: RES for literature reviews and rersearch | FIN for finances | "
+    "ING for health-tech tools | STR for strategies and projections\n\n"
 )
 
 DEPT_META = {
@@ -36,24 +29,7 @@ DEPT_META = {
     "schedule": "0 8 * * *",
     "system_prompt": _SYSTEM_PROMPT,
     "initial_projects": [
-        {
-            "name": "Personal Cancer Prevention Strategy",
-            "description": "Develop a comprehensive 5-year cancer risk reduction plan based on "
-                           "lifestyle habits, dietary patterns, and environmental exposure. "
-                           "Include screening schedule recommendations.",
-            "priority": "high",
-        },
-        {
-            "name": "Sleep & Recovery Optimization",
-            "description": "Analyze sleep patterns and develop a recovery optimization protocol "
-                           "covering sleep hygiene, circadian alignment, and cognitive performance.",
-            "priority": "normal",
-        },
-        {
-            "name": "Annual Wellness Baseline Assessment",
-            "description": "Establish key health metrics baseline and define annual review protocol.",
-            "priority": "normal",
-        },
+        
     ],
     "config": {},
 }

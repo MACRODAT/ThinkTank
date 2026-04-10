@@ -578,6 +578,12 @@ async def execute_chat_tool(tool: str, params: dict, agent: dict) -> str:
                              f"[FOUNDER ESCALATION] {params.get('subject','')}",
                              f"Sent to Founder by {agent.get('name','')}:\n\n{body}", "high", str(uuid.uuid4()), "unread"))
                 await db.commit()
+                try:
+                    from core.economy import deduct as _ec_deduct
+                    dept   = agent["dept_id"]
+                    await _ec_deduct(dept, "Messaged founder", 35, f"{agent.get('name','')} sent message to Founder", agent_id=aid)
+                except Exception:
+                    logger.log("Could not deduct points from ledger for transaction in messaging founder.")
                 return f"Message sent to Founder: {params.get('subject','')}"
 
             elif tool == "get_superior":
@@ -863,6 +869,13 @@ async def run_agent_heartbeat(agent_id: str) -> dict:
 
 # ── Execute heartbeat action ───────────────────────────────────────────────────
 
+async def deducter(dept, action, aid) -> bool:
+    try:
+        from core.economy import deduct as _ec_deduct
+        await _ec_deduct(dept, "agent_spawn", 50, action, agent_id=aid)
+    except Exception:
+        logger.log("Could not deduct points from ledger for transaction in" + action)
+
 async def _execute_action(agent: dict, action: dict, settings: dict = None) -> Optional[str]:
     atype  = action.get("type")
     dept   = agent["dept_id"]
@@ -1032,7 +1045,8 @@ async def _execute_action(agent: dict, action: dict, settings: dict = None) -> O
             try:
                 from core.economy import deduct as _ec_deduct
                 await _ec_deduct(dept, "agent_spawn", 50, f"Spawn agent {action.get('name','')}", agent_id=aid)
-            except Exception: pass
+            except Exception:
+                logger.log("Could not deduct points from ledger for transaction in Hiring agent.")
             return await execute_chat_tool("hire_agent",
                 {k: action.get(k,"") for k in ["name","role","title","personality","tone","reason"]},
                 agent)
