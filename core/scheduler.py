@@ -73,6 +73,20 @@ def setup_scheduler():
         )
         logger.info(f"Scheduled {dept_id} → {cron_str}")
 
+    # Weekly point allocation — Friday 22:00
+    async def _weekly_alloc():
+        from core.economy import run_weekly_allocation
+        await run_weekly_allocation()
+    scheduler.add_job(_weekly_alloc, CronTrigger(day_of_week='fri', hour=22, minute=0),
+        id='weekly_points', name='Weekly Point Allocation', replace_existing=True)
+
+    # Daily draft overdue fee
+    async def _overdue_fees():
+        from core.economy import run_draft_overdue_fees
+        await run_draft_overdue_fees()
+    scheduler.add_job(_overdue_fees, CronTrigger(hour=0, minute=5),
+        id='draft_overdue', name='Draft Overdue Fees', replace_existing=True)
+
     # Daily email digest
     digest_hour = int(getattr(config.email, "digest_hour", 18))
     scheduler.add_job(

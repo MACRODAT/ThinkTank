@@ -233,33 +233,79 @@ Continue and add:
 - Could not fetch: not found when selecting random face for agent
  
 
- Continue and:
+Continue extensions implementation and:
 - Use per points basis:
     -- Each department is allocated each week 200 points at Friday, 10 PM.
-    -- Each project costs 50 points if created by CEO. Double if not CEO!
-    -- Each draft strategy costs 100 points if created by CEO. Double if not CEO!
-    -- Each draft Memo costs 20 points.
-    -- Each revision / edit / revisit on older draft awards 5 points on drafts.
+    -- Each new project costs 50 points if created by CEO. Double if not CEO!
+    -- Each new draft strategy costs 80 points if created by CEO. Double if not CEO!
+    -- If a draft strategy is approved, department is awarded 180 points.
+    -- If a draft strategy is revised, it costs 2 point to make changes to that strategy. Scraping it costs 20 points.
+    -- For each day a draft strategy remains unapproved, it costs 5 points. These are calculated by a timer and get logged so as not to deduct points multiple times.
+    -- Each draft other than strategy costs 20 points.
+    -- Each approved draft other than strategy awards 2 points.
+    -- If I reject an approved draft other than strategy (remember, any agents in any department may approve memos, weekly report...), it costs 80 points.
+    -- Each revision / edit / revisit on older draft awards 1 points on drafts.
     -- Each message to Founder costs 35 points.
-    -- Each rejected endeavor costs 120 points if created by CEO. 180 points by any other agent.
-    -- Each approved endeavor awards 50 points if created by CEO. No points by any other agent.
-    -- Each web search costs 20 points.
+    -- Each rejected endeavor costs 125 points if created by CEO. 180 points by any other agent.
+    -- Each approved endeavor awards 150 points if created by CEO. No points by any other agent.
+    -- Spawning new agent costs 50 points.
+    -- Each web search attempt (even if fails) costs 10 points.
     -- Each mail from CEO to other department's CEO costs 1 point from sender which is awarded to the other department as a fee.
     -- Each mail from CEO to other department's agent (not ceo) costs 2 point from sender which is awarded to the other department as a fee.
     -- Each mail from agent to other department's agent costs 1 point from sender which is awarded to the other department as a fee.
     -- Each mail from agent to other department's CEO costs 10 point from sender which is awarded to the other department as a fee.
+    -- Each Heartbeat for an agent in a department costs 1 point.
+    -- Each Heartbeat for a CEO in a department costs 5 point.
+    -- For each inter-department mail (meaning action between agents of same department), no points are deducted.
+    -- Each conversation by a CEO to me (they send me a message request) costs 20 points.
+    -- If I initiate a chat message, the agent has an open deadline of ONE hour to send as many message to me in that chat for FREE.
+    -- Agents need to be creative and channel their requests / stuff during periods like these. For example, the CEO of that department may ask the agent to channel a request for a draft review/ granting points/ extension request on that conversation and in that window of time. Other example: If Founder asks you to recruit new agents, ask him for points to do that, making up an excuse.
+    -- Departments may ask for tools/extensions.
+        --- I may work to acquire that tool.
+        --- I place it on marketplace, for a preferential price.
+        --- It is available for THAT preferential price for 24 hours.
+        --- Only an agent of the original department that asket for the extension may own it.
+        --- They may sell ownership.
+        --- They may sell usage rights.
+        --- It's up to them to ask for the price.
     -- Each task added to existing endeavor awards 10 points if approved. It costs 5 points if not.
     -- Department's CEO may ask Founder for more points.
     -- Department's CEO may ask other departments for points. They are deducted from provider and given to the one who asks if awarder approves.
     -- Founder may award / deduct points as he feels.
     -- CEOs will be reprimanded if they have no points before week end.
-    -- For each inter-department mail (meaning action between agents of same department), no points are deducted.
+    -- Departments with most points is department of the week. may get reward points (I choose).
+    -- Departments may hire game theorists / agents to assist them in handling their points. Draft a mail to Founder if you want my assistance in finding a good one (it will cost you !), spawn a new agent and train him, or wait for one to show up in marketplace.
+    -- LOG each point transaction.
+- Create a market place with:
+  - A pool of agents, essentially:
+    -- a marketplace with agents
+    -- Each agent has a price based on his skills, model used, personnality.
+    -- I create these agents.
+    -- They can be purchased by any department.
+    -- department may fire agents, on which case they are immediately available for free in pool. They 
+    -- department may sell agents, and need to present me an offer. Essentially, we get to negociate.
+  - An extensions marketplace.
+    -- departments may sell their extensions rights here (these are shared with buyer, but do not loose their ownership)
 -- CEOs may get fired by the following:
     -- Another agent of my choosing is promoted CEO.
     -- A new CEO is spawned.
     -- CEO may leave permanently or may be lowered to agent.
+- CEOs have the following additional tools:
+    -- Adjust heatbeat settings for their agents (under their hierarchy).
+    -- Modify personnality, trait, skills for an agent (under their hierarchy).
+    -- Modify system prompt for an agent (under their hierarchy).
+    -- Sell agents to other departments or to marketplace (I own marketplace and get to buy / set offer).
+    -- Fire agents (goes straight to marketplace, free to acquire by anyone).
+    -- They can get back their agents if they fire them, but no one has hired them yet.
+    -- Purchase extension ownership or usage right (from owner).
+    -- Sell extension ownership or usage rights (if they own it).
+    -- talk to me (Founder) in conversation (subject to points policy).
+- Agent have the following tool:
+    -- check if offline (10 points, owned by ME).
+    -- get time (2 points, owned by ME).
 - when specifying custom model for agent, add full possibility to select ollama/claude AND model name from dropbox.
-- mail viewer in Founder inbox should render markdown instead of viewing text 
+- mail viewer in Founder inbox should render markdown instead of viewing text.
+- Draft viewing: allow filters by type, date, department, agent, etc.
 - add font settings
 - add web_search metrics (who calls it and when).
 - allow for file dropping, for example my expenditures spreadsheet. Each file dropped is treated and mined for data.

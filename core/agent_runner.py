@@ -139,10 +139,18 @@ _TOOLS_TABLE = """
 | hire_agent | name, role, title, personality, tone, reason | CEO only: hire agent |
 | list_agents | dept_id? | List agents |
 | update_project | project_name, status?, priority? | Update project |
-| web_search | query, max_results? | Search the web (requires web search enabled in Settings) |
+| web_search | query, max_results? | Search the web (costs 10 pts per call — use sparingly!) |
+| get_time | | Get current UTC time (costs 2 pts) |
+| check_offline | | Check if system is online (costs 10 pts) |
+| get_my_points | | Check your department's current point balance |
+| get_points_ledger | | View last 10 point transactions for your department |
+| ceo_adjust_heartbeat | agent_id, interval | CEO only: Set heartbeat interval for a subordinate |
+| ceo_modify_agent | agent_id, personality?, tone? | CEO only: Modify agent personality/tone |
+| ceo_list_market_agents | | CEO only: View available agents in marketplace |
 
 **HIERARCHY:** Only act on agents reporting to you.
-**RIGHT TOOL:** hire_agent to hire. create_draft for documents only. web_search for research.
+**RIGHT TOOL:** hire_agent to hire. create_draft for documents only. web_search ONLY when essential (costs 10 pts).
+**POINTS:** Every action costs points. Be efficient. Check get_my_points before expensive actions.
 """
 
 _HEARTBEAT_ACTIONS_TEMPLATE = """
@@ -279,9 +287,91 @@ async def execute_chat_tool(tool: str, params: dict, agent: dict) -> str:
     if tool == "web_search":
         try:
             from core.web_search import web_search as _ws
-            return await _ws(params.get("query", ""), await _get_all_settings())
+            from core.economy import log_web_search
+            settings = await _get_all_settings()
+            query    = params.get("query", "")
+            result   = await _ws(query, settings)
+            success  = "failed" not in result.lower() and "disabled" not in result.lower()
+            await log_web_search(aid, agent.get("name",""), dept_id, query,
+                                  settings.get("web_search_provider","?"), success)
+            return result
         except Exception as e:
             return f"Web search error: {e}"
+
+    if tool == "get_time":
+        from core.economy import deduct
+        await deduct(dept_id, "tool_get_time", 2, "Tool: get_time", agent_id=aid)
+        return f"Current UTC time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+
+    if tool == "check_offline":
+        from core.economy import deduct
+        await deduct(dept_id, "tool_check_offline", 10, "Tool: check_offline", agent_id=aid)
+        return "Status: ONLINE — Think Tank server is running and all systems operational."
+
+    if tool == "get_my_points":
+        from core.economy import get_balance
+        bal = await get_balance(dept_id)
+        return f"Department {dept_id} current point balance: {bal} pts"
+
+    if tool == "get_points_ledger":
+        from core.economy import get_ledger
+        rows = await get_ledger(dept_id, limit=10)
+        if not rows:
+            return "No transactions recorded yet."
+        lines = [f"Last {len(rows)} transactions for {dept_id}:"]
+        for r in rows:
+            lines.append(f"  [{r['created_at'][:16]}] {r['event']}: {r['delta']:+d} → {r['balance']} pts | {r['note']}")
+        return "\n".join(lines)
+
+    # CEO-only tools
+    if tool == "ceo_adjust_heartbeat":
+        if not is_ceo:
+            return "CEO only."
+        target_id = params.get("agent_id", "")
+        interval  = int(params.get("interval", 5))
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute("UPDATE agents SET heartbeat_interval=? WHERE id=? AND dept_id=?",
+                                 (interval, target_id, dept_id))
+                await db.commit()
+            return f"Heartbeat interval set to {interval} for agent {target_id[:8]}"
+        except Exception as e:
+            return f"Error: {e}"
+
+    if tool == "ceo_modify_agent":
+        if not is_ceo:
+            return "CEO only."
+        target_id   = params.get("agent_id", "")
+        personality = params.get("personality")
+        tone        = params.get("tone")
+        try:
+            async with aiosqlite.connect(DB_PATH) as db:
+                if personality:
+                    await db.execute("UPDATE agents SET personality=? WHERE id=? AND dept_id=?",
+                                     (personality, target_id, dept_id))
+                if tone:
+                    await db.execute("UPDATE agents SET tone=? WHERE id=? AND dept_id=?",
+                                     (tone, target_id, dept_id))
+                await db.commit()
+            return f"Agent {target_id[:8]} updated."
+        except Exception as e:
+            return f"Error: {e}"
+
+    if tool == "ceo_list_market_agents":
+        # CEO can view marketplace without charge
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=5) as c:
+                r = await c.get("http://localhost:8000/api/marketplace/agents")
+                agents = r.json()
+            if not agents:
+                return "Marketplace is empty."
+            lines = ["Available agents in marketplace:"]
+            for a in agents[:10]:
+                lines.append(f"  [{a.get('price',0)} pts] {a.get('name','')} — {a.get('role','')} | {a.get('personality','')[:60]}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Error fetching marketplace: {e}"
 
     try:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -641,9 +731,21 @@ async def run_agent_heartbeat(agent_id: str) -> dict:
     append   = settings.get("custom_prompt_append", "")
     system_prompt = _build_system_prompt(agent, chat_mode=False, prepend=prepend, append=append, settings=settings)
 
+
     dept   = agent["dept_id"]
     is_ceo = bool(agent.get("is_ceo"))
     aid    = agent["id"]
+
+    # Charge heartbeat cost
+    try:
+        from core.economy import deduct as _ec_deduct
+        hb_cost = 5 if is_ceo else 1
+        hb_event = "heartbeat_ceo" if is_ceo else "heartbeat_agent"
+        await _ec_deduct(dept, hb_event, hb_cost, f"Heartbeat {agent.get('name','')[:20]}", agent_id=aid)
+    except Exception as _hb_ec_err:
+        logger.warning(f"Economy heartbeat charge failed: {_hb_ec_err}")
+
+
 
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -803,12 +905,29 @@ async def _execute_action(agent: dict, action: dict, settings: dict = None) -> O
                 new_c = (ex.get("content","") or "") + "\n\n---\n\n" + action.get("content","")
                 await db.execute("UPDATE drafts SET content=?,status='pending' WHERE id=?", (new_c, ex["id"]))
                 await db.commit()
+                # Award 1 pt for revising old draft
+                try:
+                    from core.economy import award as _ec_award
+                    await _ec_award(dept, "draft_revision_award", 1, f"Revised draft {ex['id'][:8]}", ex["id"])
+                except Exception: pass
                 return f"Appended to '{ex['title']}'"
             did = str(uuid.uuid4())
+            draft_type = action.get("draft_type","memo")
             await db.execute(
                 "INSERT INTO drafts (id,dept_id,title,content,draft_type,priority,status,created_by_agent) VALUES (?,?,?,?,?,?,?,?)",
-                (did, dept, title, action.get("content",""), action.get("draft_type","memo"), action.get("priority","normal"), "pending", aid))
+                (did, dept, title, action.get("content",""), draft_type, action.get("priority","normal"), "pending", aid))
             await db.commit()
+            # Charge for draft creation
+            try:
+                from core.economy import deduct as _ec_deduct
+                if draft_type == "strategy":
+                    cost  = 80 if is_ceo else 160
+                    event = "draft_strategy_create_ceo" if is_ceo else "draft_strategy_create_agent"
+                else:
+                    cost, event = 20, "draft_other_create"
+                await _ec_deduct(dept, event, cost, f"Draft: {title[:40]}", did, aid)
+            except Exception:
+                logger.log("Economy deduct error: ", exc_info=True)
             return f"Created draft: {title[:60]}"
 
         elif atype == "update_existing_draft":
@@ -907,6 +1026,16 @@ async def _execute_action(agent: dict, action: dict, settings: dict = None) -> O
                 except Exception as e:
                     logger.warning(f"Failed to invoke {s['name']}: {e}")
             return f"Invoked {len(invoked)}: {', '.join(invoked)}"
+
+        elif atype == "hire_agent":
+            # Charge spawn cost
+            try:
+                from core.economy import deduct as _ec_deduct
+                await _ec_deduct(dept, "agent_spawn", 50, f"Spawn agent {action.get('name','')}", agent_id=aid)
+            except Exception: pass
+            return await execute_chat_tool("hire_agent",
+                {k: action.get(k,"") for k in ["name","role","title","personality","tone","reason"]},
+                agent)
 
         elif atype == "weekly_report":
             content    = action.get("content","")

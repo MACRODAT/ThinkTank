@@ -460,6 +460,12 @@ async def send_to_founder(
         """, (mid, from_agent_id, from_dept_id.upper(), subject, body,
                priority, requires_decision, context_json))
         await db.commit()
+    # Charge 35 points for founder mail
+    try:
+        from core.economy import deduct as _ec_deduct
+        await _ec_deduct(from_dept_id.upper(), "founder_mail_send", 35,
+                         f"Founder mail: {subject[:40]}", mid, from_agent_id)
+    except Exception: pass
     return {"id": mid}
 
 

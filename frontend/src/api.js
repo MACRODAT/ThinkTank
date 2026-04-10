@@ -17,7 +17,7 @@ export const runDepartment   = (id)   => req(`/departments/${id}/run`, { method:
 export const runAllDepts     = ()     => req('/departments/run-all',   { method: 'POST' })
 
 // Drafts
-export const getDrafts        = (limit=100) => req(`/drafts?limit=${limit}`)
+export const getDrafts        = (params={}) => { const qs = new URLSearchParams(params).toString(); return req(`/drafts${qs ? '?' + qs : ''}`) }
 export const getPendingDrafts = (deptId)    => req(`/drafts/pending${deptId ? `?dept_id=${deptId}` : ''}`)
 export const getDraft         = (id)        => req(`/drafts/${id}`)
 export const getDraftStats    = ()          => req('/drafts/stats')
@@ -53,7 +53,7 @@ export const saveSettings   = (body)      => req('/settings',          { method:
 export const probeOllama    = (url)       => req(`/settings/ollama-models?base_url=${encodeURIComponent(url)}`)
 export const getThinkingLog = (limit=50)  => req(`/settings/thinking-log?limit=${limit}`)
 
-// ── Endeavors ────────────────────────────────────────────────────────────────
+// Endeavors
 export const getEndeavors      = (p={})   => { const qs = new URLSearchParams(p).toString(); return req(`/endeavors${qs ? '?' + qs : ''}`) }
 export const createEndeavor    = (body)   => req('/endeavors',            { method: 'POST', body })
 export const getEndeavor       = (id)     => req(`/endeavors/${id}`)
@@ -74,26 +74,24 @@ export const addObjective      = (pid, b) => req(`/phases/${pid}/objectives`, { 
 export const updateObjective   = (oid, b) => req(`/objectives/${oid}`,        { method: 'PUT',  body: b })
 export const deleteObjective   = (oid)    => req(`/objectives/${oid}`,        { method: 'DELETE' })
 export const toggleObjective   = (oid)    => req(`/objectives/${oid}/toggle`, { method: 'POST' })
-
-// Time tracking
 export const startTimer        = (oid)    => req(`/objectives/${oid}/time/start`, { method: 'POST' })
 export const stopTimer         = (oid)    => req(`/objectives/${oid}/time/stop`,  { method: 'POST' })
 export const getTimeLog        = (oid)    => req(`/objectives/${oid}/time`)
 
-// ── Agents ───────────────────────────────────────────────────────────────────
+// Agents
 export const getAgents           = (p={})  => { const qs=new URLSearchParams(p).toString(); return req(`/agents${qs?'?'+qs:''}`) }
 export const getAgent            = (id)    => req(`/agents/${id}`)
 export const createAgent         = (body)  => req('/agents',               { method:'POST',   body })
 export const updateAgent         = (id,b)  => req(`/agents/${id}`,         { method:'PUT',    body:b })
 export const fireAgent           = (id,b)  => req(`/agents/${id}/fire`,    { method:'POST',   body:b })
 export const triggerHeartbeat    = (id)    => req(`/agents/${id}/heartbeat`,{ method:'POST' })
-export const chatWithAgent_old       = (id, msg)=> req(`/agents/${id}/chat`,     { method:'POST', body:{ message: msg } })
-export const getHeartbeatStatus_old  = ()       => req('/heartbeat/status')
-
-// Agent files
 export const getAgentFiles       = (id)    => req(`/agents/${id}/files`)
 export const upsertAgentFile     = (id,b)  => req(`/agents/${id}/files`,   { method:'POST',   body:b })
 export const deleteAgentFile     = (id,fid)=> req(`/agents/${id}/files/${fid}`, { method:'DELETE' })
+export const chatWithAgent          = (id, message) => req(`/agents/${id}/chat`, { method:'POST', body:{ message } })
+export const clearAgentChat         = (id)           => req(`/agents/${id}/chat`, { method:'DELETE' })
+export const getHeartbeatStatus     = ()             => req('/agents/heartbeat/status')
+export const updateHeartbeatInterval= (id, interval) => req(`/agents/${id}/heartbeat-interval`, { method:'PUT', body:{ interval } })
 
 // Dept files
 export const getDeptFiles        = (did)   => req(`/deptfiles/${did}`)
@@ -113,7 +111,7 @@ export const requestSpawn        = (body)  => req('/spawn-requests',       { met
 export const approveSpawn        = (id,b)  => req(`/spawn-requests/${id}/approve`, { method:'POST', body:b })
 export const rejectSpawn         = (id,b)  => req(`/spawn-requests/${id}/reject`,  { method:'POST', body:b })
 
-// Draft endeavors (agent-submitted)
+// Draft endeavors
 export const getDraftEndeavors   = (p={})  => { const qs=new URLSearchParams(p).toString(); return req(`/draft-endeavors${qs?'?'+qs:''}`) }
 export const createDraftEndeavor = (body)  => req('/draft-endeavors',     { method:'POST',   body })
 export const approveDraftEndeavor= (id,b)  => req(`/draft-endeavors/${id}/approve`, { method:'POST', body:b })
@@ -123,12 +121,6 @@ export const editDraftEndeavor   = (id,b)  => req(`/draft-endeavors/${id}`,{ met
 // CEO decisions
 export const getCeoDecisions     = (p={})  => { const qs=new URLSearchParams(p).toString(); return req(`/ceo-decisions${qs?'?'+qs:''}`) }
 
-// Agent chat
-export const chatWithAgent          = (id, message) => req(`/agents/${id}/chat`, { method:'POST', body:{ message } })
-export const clearAgentChat         = (id)           => req(`/agents/${id}/chat`, { method:'DELETE' })
-export const getHeartbeatStatus     = ()             => req('/agents/heartbeat/status')
-export const updateHeartbeatInterval= (id, interval) => req(`/agents/${id}/heartbeat-interval`, { method:'PUT', body:{ interval } })
-
 // Topics
 export const getTopics       = ()           => req('/topics')
 export const searchTopics    = (q)          => req(`/topics/search?q=${encodeURIComponent(q)}`)
@@ -137,15 +129,36 @@ export const updateTopic     = (id, body)   => req(`/topics/${id}`,        { met
 export const deleteTopic     = (id)         => req(`/topics/${id}`,        { method:'DELETE' })
 export const assignTopic     = (id, body)   => req(`/topics/${id}/assign`, { method:'POST',   body })
 
-// Presets (external JSON files)
+// Presets
 export const getPresetList   = ()           => req('/presets')
 export const getPreset       = (name)       => req(`/presets/${name}`)
 export const savePreset      = (name, body) => req(`/presets/${name}`,     { method:'PUT',    body })
 
-// Random face for agent profile images
+// Random face / prompts
 export const getRandomFace   = ()           => req('/agents/random-face')
-
-// Prompts overview
 export const getAllPrompts    = ()           => req('/admin/all-prompts')
 export const saveAgentPrompt = (id, body)   => req(`/agents/${id}`,        { method:'PUT',    body })
 
+// Economy
+export const getEconomyBalances   = ()              => req('/economy/balances')
+export const getDeptBalance        = (id)            => req(`/economy/balance/${id}`)
+export const getDeptLedger         = (id, l=100)     => req(`/economy/ledger/${id}?limit=${l}`)
+export const economyAdjust         = (body)          => req('/economy/adjust',   { method:'POST', body })
+export const economyTransfer       = (body)          => req('/economy/transfer', { method:'POST', body })
+export const getSearchMetrics      = (l=100)         => req(`/economy/search-metrics?limit=${l}`)
+
+// Marketplace — Agents
+export const getMarketAgents       = ()              => req('/marketplace/agents')
+export const listAgentForSale      = (body)          => req('/marketplace/agents/list', { method:'POST', body })
+export const buyMarketAgent        = (lid, body)     => req(`/marketplace/agents/${lid}/buy`, { method:'POST', body })
+export const fireAgentToPool       = (lid)           => req(`/marketplace/agents/${lid}/fire-to-pool`, { method:'POST' })
+
+// Marketplace — Extensions
+export const getMarketExtensions   = ()              => req('/marketplace/extensions')
+export const listExtForSale        = (body)          => req('/marketplace/extensions/list', { method:'POST', body })
+export const buyMarketExtension    = (lid, body)     => req(`/marketplace/extensions/${lid}/buy`, { method:'POST', body })
+export const getDeptOwnedExts      = (id)            => req(`/marketplace/extensions/owned/${id}`)
+
+// File drops
+export const dropFile              = (body)          => req('/files/drop', { method:'POST', body })
+export const getDroppedFiles       = ()              => req('/files/dropped')

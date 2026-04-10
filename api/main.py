@@ -22,6 +22,8 @@ from api.routes.endeavors   import router as endeavors_router
 from api.routes.agents      import router as agents_router
 from api.routes.topics      import router as topics_router
 from api.routes.extensions  import router as extensions_router
+from api.routes.economy     import router as economy_router
+from api.routes.files       import router as files_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +32,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
 
@@ -43,7 +44,9 @@ async def lifespan(app: FastAPI):
     from core.agents_db import init_agents_db, seed_ceo_agents
     await init_agents_db()
     await seed_ceo_agents()
-    logger.info("✓ Database ready")
+    from core.economy import init_economy_db
+    await init_economy_db()
+    logger.info("✓ Database + Economy ready")
     setup_scheduler()
     logger.info("✓ Scheduler started")
     from core.agent_scheduler import start_agent_scheduler
@@ -63,7 +66,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API routers (must be registered before the catch-all)
 app.include_router(dept_router)
 app.include_router(mail_router)
 app.include_router(draft_router)
@@ -73,9 +75,9 @@ app.include_router(endeavors_router)
 app.include_router(agents_router)
 app.include_router(topics_router)
 app.include_router(extensions_router)
+app.include_router(economy_router)
+app.include_router(files_router)
 
-
-# ── Presets: serve JSON preset files from data/presets/ ──────────────────────
 import json, os
 from fastapi.responses import JSONResponse
 
@@ -84,8 +86,7 @@ PRESETS_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.get("/api/presets")
 async def list_presets():
-    files = [f.stem for f in PRESETS_DIR.glob("*.json")]
-    return {"files": files}
+    return {"files": [f.stem for f in PRESETS_DIR.glob("*.json")]}
 
 @app.get("/api/presets/{name}")
 async def get_preset(name: str):
@@ -97,49 +98,37 @@ async def get_preset(name: str):
 @app.put("/api/presets/{name}")
 async def save_preset(name: str, request: Request):
     data = await request.json()
-    p = PRESETS_DIR / f"{name}.json"
-    p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    (PRESETS_DIR / f"{name}.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
     return {"ok": True}
 
-
-# ── Agent image proxy (thispersondoesnotexist.com) ───────────────────────────
 import httpx
 
 @app.get("/api/agents/random-face")
 async def random_face():
-    """Return a random face image as base64. Tries multiple free sources."""
     import base64, random as _random
     SOURCES = [
-        # pravatar - real-looking faces, very reliable
         f"https://i.pravatar.cc/256?img={_random.randint(1, 70)}",
-        # DiceBear - stylized avatars, always works
         f"https://api.dicebear.com/7.x/personas/jpg?seed={_random.randint(1,9999)}&size=256",
         f"https://api.dicebear.com/7.x/adventurer-neutral/jpg?seed={_random.randint(1,9999)}&size=256",
     ]
     for url in _random.sample(SOURCES, len(SOURCES)):
         try:
             async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
-                resp = await client.get(url, headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; ThinkTank/1.0)"
-                })
+                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; ThinkTank/1.0)"})
             if resp.status_code == 200 and len(resp.content) > 500:
                 b64 = base64.b64encode(resp.content).decode()
                 ct  = resp.headers.get("content-type", "image/jpeg").split(";")[0]
                 return {"data_url": f"data:{ct};base64,{b64}"}
         except Exception as e:
-            logger.warning(f"Face source {url} failed: {e}")
-            continue
-    return {"error": "All face sources failed — check internet connection"}
-
+            logger.warning(f"Face source failed: {e}")
+    return {"error": "All face sources failed"}
 
 @app.get("/")
 async def index():
     return FileResponse(FRONTEND_DIR / "index.html")
 
-
 @app.post("/api/server/stop")
 async def stop_server():
-    """Gracefully stop the server process."""
     import asyncio, os, signal
     async def _shutdown():
         await asyncio.sleep(0.5)
@@ -147,11 +136,8 @@ async def stop_server():
     asyncio.create_task(_shutdown())
     return {"ok": True, "message": "Server shutting down…"}
 
-
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str):
-    """Serve index.html for all non-API frontend routes."""
-    # Don't intercept API calls that somehow missed routing
     if full_path.startswith("api/"):
         return JSONResponse({"detail": "Not found"}, status_code=404)
     index_file = FRONTEND_DIR / "index.html"
