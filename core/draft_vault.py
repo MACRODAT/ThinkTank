@@ -94,7 +94,22 @@ async def update_draft(draft_id: str, title: Optional[str] = None,
     if title is not None:   change_desc.append(f"title→'{title}'")
     if content is not None: change_desc.append(f"content updated ({'append' if append else 'replace'})")
     if priority is not None:change_desc.append(f"priority→{priority}")
-    await _log_draft_history(draft_id, "system", "edited", ", ".join(change_desc))
+    if change_desc:
+        await _log_draft_history(draft_id, "system", "edited", ", ".join(change_desc))
+        # Award 1 pt for editing an existing draft
+        try:
+            from core.economy import award as _ec_award, _load_points_config
+            async with aiosqlite.connect(DB_PATH) as db2:
+                db2.row_factory = aiosqlite.Row
+                async with db2.execute("SELECT dept_id FROM drafts WHERE id=?", (draft_id,)) as cur:
+                    r2 = await cur.fetchone()
+            if r2:
+                cfg = await _load_points_config()
+                await _ec_award(r2["dept_id"], "draft_revision_award",
+                                int(cfg.get("draft_revision_award", 1)),
+                                f"Draft edit {draft_id[:8]}")
+        except Exception:
+            pass
     return True
 
 
@@ -137,6 +152,18 @@ async def get_draft(draft_id: str) -> Optional[Dict]:
             SELECT d.*, dep.name as dept_name, dep.code as dept_code
             FROM drafts d JOIN departments dep ON d.dept_id=dep.id WHERE d.id=?
         """, (draft_id,)) as cur:
+            row = await cur.fetchone()
+    return dict(row) if row else None
+
+
+async def _get_draft_info(draft_id: str) -> Optional[dict]:
+    """Lightweight fetch for economy hooks."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT dept_id, draft_type, status, created_by_agent FROM drafts WHERE id=?",
+            (draft_id,)
+        ) as cur:
             row = await cur.fetchone()
     return dict(row) if row else None
 
@@ -190,6 +217,39 @@ async def review_draft(draft_id: str, action: str,
                     {"draft_id": draft_id, "action": action, "by": reviewed_by})
     # Always log the status change with actor + notes
     await _log_draft_history(draft_id, reviewed_by, action, notes or "")
+
+    # Economy charges
+    try:
+        from core.economy import deduct as _ec_deduct, award as _ec_award, _load_points_config
+        info = await _get_draft_info(draft_id)
+        if info:
+            dept      = info["dept_id"]
+            dtype     = info["draft_type"]
+            cfg       = await _load_points_config()
+            is_strat  = (dtype == "strategy")
+
+            if action == "approved":
+                pts   = int(cfg.get("draft_strategy_approved", 180)) if is_strat else int(cfg.get("draft_other_approved", 40))
+                event = "draft_strategy_approved" if is_strat else "draft_other_approved"
+                await _ec_award(dept, event, pts, f"Draft approved {draft_id[:8]}")
+
+            elif action == "rejected":
+                if not is_strat and reviewed_by == "founder":
+                    await _ec_deduct(dept, "draft_other_rejected_founder",
+                                     int(cfg.get("draft_other_rejected_founder", 80)),
+                                     f"Founder rejected draft {draft_id[:8]}")
+                elif is_strat:
+                    await _ec_deduct(dept, "draft_strategy_rejected",
+                                     int(cfg.get("draft_strategy_rejected", 20)),
+                                     f"Strategy scrapped {draft_id[:8]}")
+
+            elif action == "revised" and is_strat:
+                await _ec_deduct(dept, "draft_strategy_revised",
+                                 int(cfg.get("draft_strategy_revised", 2)),
+                                 f"Strategy revised {draft_id[:8]}")
+    except Exception:
+        pass  # Never crash review over economy errors
+
     return True
 
 

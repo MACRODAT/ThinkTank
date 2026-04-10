@@ -50,7 +50,7 @@ export default function DraftViewer({ draft, onClose, onReviewed }) {
 
   // ── FULL OVERLAY ─────────────────────────────────────────────────────
   return (
-    <div className="sp-overlay" data-mode={mode === MODE.INFO ? 'full' : mode === MODE.PREVIEW ? 'preview' : 'split'}>
+    <div className="sp-overlay" data-mode={mode === MODE.INFO ? 'full' : mode === MODE.PREVIEW ? 'preview' : 'split'} style={{'height': '80vh'}}>
 
       {/* ── Top bar ── */}
       <div className="sp-topbar">

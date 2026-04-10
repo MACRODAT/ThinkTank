@@ -26,9 +26,17 @@ export function AppProvider({ children }) {
   }, [theme])
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--font-family', FONTS[fontKey]?.value || FONTS.system.value)
-    document.body.style.fontFamily = FONTS[fontKey]?.value || FONTS.system.value
-    document.body.style.fontSize   = FONT_SIZES[fontSize] || '14px'
+    const fontVal = FONTS[fontKey]?.value || FONTS.system.value
+    const sizeVal  = FONT_SIZES[fontSize] || '14px'
+    document.documentElement.style.setProperty('--font-family', fontVal)
+    document.documentElement.style.setProperty('--font-size-base', sizeVal)
+    document.body.style.fontFamily = fontVal
+    document.body.style.fontSize   = sizeVal
+    // Also patch all existing CSS
+    const styleEl = document.getElementById('ctt-font-override') ||
+      Object.assign(document.createElement('style'), { id: 'ctt-font-override' })
+    styleEl.textContent = `*, body { font-family: ${fontVal} !important; font-size: ${sizeVal}; }`
+    if (!document.getElementById('ctt-font-override')) document.head.appendChild(styleEl)
     localStorage.setItem('ctt-font',     fontKey)
     localStorage.setItem('ctt-fontsize', fontSize)
   }, [fontKey, fontSize])

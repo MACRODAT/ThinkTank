@@ -309,3 +309,28 @@ Continue extensions implementation and:
 - add font settings
 - add web_search metrics (who calls it and when).
 - allow for file dropping, for example my expenditures spreadsheet. Each file dropped is treated and mined for data.
+
+
+Continue and:
+- I've corrected point system. Yet many items still need implementation, such as:
+    -- If a draft strategy is approved, department is awarded 180 points.
+    -- If a draft strategy is revised, it costs 2 point to make changes to that strategy. Scraping it costs 20 points.
+    -- For each day a draft strategy remains unapproved, it costs 5 points. These are calculated by a timer and get logged so as not to deduct points multiple times.
+    -- Each approved draft other than strategy awards 40 points. (I've modified this from +2 to +40)
+    -- If I reject an approved draft other than strategy (remember, any agents in any department may approve memos, weekly report...), it costs 80 points.
+    -- Each revision / edit / revisit on older draft awards 1 points on drafts.
+    -- Each rejected endeavor costs 125 points if created by CEO. 180 points by any other agent.
+    -- Each approved endeavor awards 150 points if created by CEO. No points by any other agent.
+     -- Each mail from CEO to other department's CEO costs 1 point from sender which is awarded to the other department as a fee.
+    -- Each mail from CEO to other department's agent (not ceo) costs 2 point from sender which is awarded to the other department as a fee.
+    -- Each mail from agent to other department's agent costs 1 point from sender which is awarded to the other department as a fee.
+    -- Each mail from agent to other department's CEO costs 10 point from sender which is awarded to the other department as a fee.
+** IMPORTANT **
+MAKE IT EASY FOR ME TO CORRECT THIS POINT BASED SYSTEM VIA A NEW PAGE WHERE I GET TO SET THE POINTS AWARDED AND DEDUCTED.
+- I still cannot change custom model for agent (When i type any model, it uses Claude instead of ollama! If I type model, use ollama)
+- Font size does not work
+- When chatting with agent, if he's thinking (meaning he's waiting for response from server), and I switch page, it will not show the new message when I get back. Meaning: I have to be stuck there until message appears.
+- I still cannot fire CEO! Procedure:
+  -- Another agent of my choosing is promoted CEO.
+  -- A new CEO is spawned.
+  -- CEO may leave permanently or may be lowered to agent.

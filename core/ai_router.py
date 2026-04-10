@@ -99,13 +99,17 @@ async def route_chat(agent_id: str, system_prompt: str, messages: List[Dict]) ->
             ) as cur:
                 row = await cur.fetchone()
             if row and row["model_override"]:
-                override = row["model_override"]
-                if "ollama:" in override:
-                    o_model  = override.replace("ollama:", "")
-                    backend  = "ollama"
+                override = row["model_override"].strip()
+                if override.startswith("ollama:"):
+                    o_model = override.replace("ollama:", "", 1)
+                    backend = "ollama"
+                elif override.startswith("claude"):
+                    c_model = override
+                    backend = "claude"
                 else:
-                    c_model  = override
-                    backend  = "claude"
+                    # Any other value (e.g. "llama3", "mistral") → treat as Ollama model
+                    o_model = override
+                    backend = "ollama"
     except Exception:
         pass
 

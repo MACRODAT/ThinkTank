@@ -9,7 +9,9 @@ from core.database import DB_PATH
 from core.economy import (
     get_balance, get_all_balances, get_ledger,
     founder_adjust, award, deduct, transact,
-    get_web_search_metrics
+    get_web_search_metrics,
+    _load_points_config, _save_points_config,
+    _DEFAULT_COSTS, COST_LABELS, AWARD_EVENTS,
 )
 
 router = APIRouter(tags=["economy"])
@@ -69,6 +71,26 @@ async def transfer_points(
 @router.get("/api/economy/search-metrics")
 async def search_metrics(limit: int = 100):
     return await get_web_search_metrics(limit)
+
+
+# ── Points config ─────────────────────────────────────────────────────
+
+@router.get("/api/economy/config")
+async def get_points_config():
+    cfg = await _load_points_config()
+    return {
+        "config": cfg,
+        "defaults": _DEFAULT_COSTS,
+        "labels": COST_LABELS,
+        "award_events": list(AWARD_EVENTS),
+    }
+
+
+@router.post("/api/economy/config")
+async def save_points_config(request: Request):
+    data = await request.json()
+    await _save_points_config(data)
+    return {"ok": True}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

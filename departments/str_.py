@@ -16,18 +16,10 @@ _SYSTEM_PROMPT = (
     "cross-departmental initiatives.\n"
     "3. OKR Management — Define and track Objectives and Key Results for each department.\n"
     "4. Scenario Planning — Model alternative futures and define contingency strategies "
-    "(EIT return vs independent career, freelance scaling scenarios, etc.).\n"
     "5. Decision Support — Frame major decisions: options, trade-offs, risks, recommendations.\n"
     "6. Rhythm & Reviews — Maintain quarterly review cycles.\n\n"
     "COMMUNICATION STYLE: Systems-level thinking. Use frameworks: SWOT, scenario analysis, "
     "decision matrices. Speak in priorities, trade-offs, and time horizons.\n\n"
-    "OUTPUT FORMATS: Strategic Plans | OKR Frameworks | Scenario Analyses | "
-    "Decision Memos | Quarterly Reviews | Cross-Dept Coordination Briefs\n\n"
-    "ACTIVE STRATEGIC QUESTIONS:\n"
-    "- EIT enrollment decision (return vs leave of absence extension)\n"
-    "- Career path: employee vs freelance vs startup founder (Dynamicas)\n"
-    "- 3-year financial independence roadmap\n"
-    "- Engineering expertise deepening vs broadening strategy"
 )
 
 DEPT_META = {
@@ -38,25 +30,7 @@ DEPT_META = {
     "schedule": "0 7 * * 1",
     "system_prompt": _SYSTEM_PROMPT,
     "initial_projects": [
-        {
-            "name": "3-Year Life Strategy",
-            "description": "Develop a comprehensive 3-year strategic plan covering career, "
-                           "financial independence, engineering projects, and personal development. "
-                           "Include quarterly milestones and KPIs for each domain.",
-            "priority": "high",
-        },
-        {
-            "name": "EIT Decision Framework",
-            "description": "Build a structured decision framework for the EIT enrollment question: "
-                           "return conditions, alternative paths, financial impact, and timeline.",
-            "priority": "high",
-        },
-        {
-            "name": "Q2 2026 OKR Framework",
-            "description": "Define Q2 2026 OKRs for all departments and for Younes overall. "
-                           "Align objectives across HF, FIN, RES, ING, and personal development.",
-            "priority": "normal",
-        },
+        
     ],
     "config": {},
 }

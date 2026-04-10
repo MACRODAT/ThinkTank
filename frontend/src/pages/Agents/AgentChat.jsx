@@ -7,9 +7,13 @@ import MarkdownPreview from '../../components/Editor/MarkdownPreview'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODULE-LEVEL cache — survives component unmount/remount (tab switches)
-// Key: agentId → array of message objects
-// ─────────────────────────────────────────────────────────────────────────────
-const MESSAGE_CACHE = {}
+const MESSAGE_CACHE = {}  // agentId → messages[]
+const PENDING_CACHE = {}  // agentId → { sending: bool, pendingMsg: string|null }
+
+function getCached(agentId) {
+  if (!PENDING_CACHE[agentId]) PENDING_CACHE[agentId] = { sending: false, pendingMsg: null }
+  return PENDING_CACHE[agentId]
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -116,9 +120,10 @@ export default function AgentChat({ agent, initialHistory = [] }) {
   // When the tab is revisited (component remounts), pull from module cache
   useEffect(() => {
     const cached = MESSAGE_CACHE[agentId]
-    if (cached && cached.length > 0) {
-      setMessages(cached)
-    }
+    if (cached && cached.length > 0) setMessages(cached)
+    // Restore sending state if a request was in-flight when we left
+    const pending = getCached(agentId)
+    if (pending.sending) setSending(true)
   }, []) // runs once on every mount
 
   useEffect(() => {
