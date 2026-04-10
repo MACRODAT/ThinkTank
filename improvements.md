@@ -334,3 +334,16 @@ MAKE IT EASY FOR ME TO CORRECT THIS POINT BASED SYSTEM VIA A NEW PAGE WHERE I GE
   -- Another agent of my choosing is promoted CEO.
   -- A new CEO is spawned.
   -- CEO may leave permanently or may be lowered to agent.
+
+I have done a lot of modifications. Continue and also correct the following:
+  - In mail system, ensure you include "ref_mail_prev" in mail structure. This will be a reference to any previous mail which the agent may be trying to reply to. In mail viewer, when clicking on any mail, show all the contents of all previous reference mail (so we can track communication on same topic). make necessary database changes.
+  - allow for prompt parsing before sending to LLM ! add holders like:
+    -- {{time_of_day}}
+    -- {{date}}
+    -- {{current_points}} => department's current points
+    -- {{ledger}} => department's full ledger.
+    -- {{weather}}
+    -- {{founder_mood}}
+    -- {{other_department_points}}  
+  - also ensure that when a department has negative budget, it can't do anything that costs points.
+  - Add points loan with interest rate which may be sold in the marketplace (I can offer them, as well as other departments at interest rate and budget of choosing)
