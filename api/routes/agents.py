@@ -461,11 +461,14 @@ async def send_to_founder(
                priority, requires_decision, context_json))
         await db.commit()
     # Charge 35 points for founder mail
+    import logging
+    logger = logging.getLogger(__name__)
     try:
         from core.economy import deduct as _ec_deduct
         await _ec_deduct(from_dept_id.upper(), "founder_mail_send", 35,
                          f"Founder mail: {subject[:40]}", mid, from_agent_id)
-    except Exception: pass
+    except Exception: 
+        logger.log("Failed to deduct points in send to founder.")
     return {"id": mid}
 
 

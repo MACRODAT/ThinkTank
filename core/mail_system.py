@@ -11,6 +11,17 @@ from core.database import DB_PATH, new_id, log_event
 async def send_mail(from_dept: str, to_dept: str, subject: str, body: str,
                     priority: str = "normal", reply_to: Optional[str] = None,
                     thread_id: Optional[str] = None, metadata: dict = None) -> str:
+    import logging
+    logger = logging.getLogger(__name__)
+    print(metadata)
+    try:
+        from core.economy import deduct as _ec_deduct
+        await _ec_deduct(from_dept.upper(), "mail_send", 1,
+                         f"Sending mail from {from_dept} to {to_dept}", "", "")
+        await _ec_deduct(to_dept.upper(), "mail_receive", -1,
+                         f"Sending mail from {from_dept} to {to_dept}", "", "")
+    except Exception: 
+        logger.log("Failed to deduct points in send_mail.")
     mail_id = new_id()
     tid = thread_id or (reply_to and await _get_thread(reply_to)) or mail_id
     async with aiosqlite.connect(DB_PATH) as db:
