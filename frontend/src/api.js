@@ -34,6 +34,7 @@ export const getMailChain = (mailId)   => req(`/mail/chain/${mailId}`)
 export const getMailById  = (mailId)   => req(`/mail/message/${mailId}`)
 export const markRead     = (mailId)   => req(`/mail/${mailId}/read`,  { method: 'POST' })
 export const sendMail     = (body)     => req('/mail/send',            { method: 'POST', body })
+export const archiveMail  = (mailId) => req(`/mail/${mailId}/archive`, { method: 'POST' })
 
 // Projects
 export const getProjects    = (params={}) => { const qs = new URLSearchParams(params).toString(); return req(`/admin/projects${qs ? '?' + qs : ''}`) }
@@ -94,6 +95,23 @@ export const chatWithAgent          = (id, message) => req(`/agents/${id}/chat`,
 export const clearAgentChat         = (id)           => req(`/agents/${id}/chat`, { method:'DELETE' })
 export const getHeartbeatStatus     = ()             => req('/agents/heartbeat/status')
 export const updateHeartbeatInterval= (id, interval) => req(`/agents/${id}/heartbeat-interval`, { method:'PUT', body:{ interval } })
+
+// Mail chain (were missing — this caused chain to always show 1 message)
+// export const getMailById  = (mailId) => req(`/mail/message/${mailId}`)
+// export const getMailChain = (mailId) => req(`/mail/chain/${mailId}`)
+// export const archiveMail  = (mailId) => req(`/mail/${mailId}/archive`, { method: 'POST' })
+
+// CEO succession
+export const getSuccessionCandidates = (deptId)     => req(`/agents/dept/${deptId}/succession-candidates`)
+export const demoteCeo               = (aid, body)  => req(`/agents/${aid}/demote-ceo`,     { method: 'POST', body })
+export const promoteToCeo            = (aid, body)  => req(`/agents/${aid}/promote-to-ceo`, { method: 'POST', body })
+export const spawnNewCeo             = (body)        => req('/agents/spawn-ceo',             { method: 'POST', body })
+
+// Loan offers (open market, no specific borrower)
+export const getLoanOffers    = (status = 'open') => req(`/economy/loan-offers?status=${status}`)
+export const postLoanOffer    = (body)            => req('/economy/loan-offers',              { method: 'POST', body })
+export const acceptLoanOffer  = (id, dept)        => req(`/economy/loan-offers/${id}/accept`, { method: 'POST', body: { borrower_dept: dept } })
+export const retractLoanOffer = (id)              => req(`/economy/loan-offers/${id}/retract`,{ method: 'POST' })
 
 // Dept files
 export const getDeptFiles        = (did)   => req(`/deptfiles/${did}`)
@@ -174,3 +192,12 @@ export const getDeptOwnedExts      = (id)            => req(`/marketplace/extens
 // File drops
 export const dropFile              = (body)          => req('/files/drop', { method:'POST', body })
 export const getDroppedFiles       = ()              => req('/files/dropped')
+
+// export const getSuccessionCandidates = (deptId) => req(`/agents/dept/${deptId}/succession-candidates`)
+// export const demoteCeo    = (aid, b) => req(`/agents/${aid}/demote-ceo`,    { method: 'POST', body: b })
+// export const promoteToCeo = (aid, b) => req(`/agents/${aid}/promote-to-ceo`, { method: 'POST', body: b })
+// export const spawnNewCeo  = (b)      => req(`/agents/spawn-ceo`,            { method: 'POST', body: b })
+// export const postLoanOffer    = (b)  => req(`/economy/loan-offers`,                          { method: 'POST', body: b })
+// export const getLoanOffers    = (s='open') => req(`/economy/loan-offers?status=${s}`)
+// export const acceptLoanOffer  = (id, dept) => req(`/economy/loan-offers/${id}/accept`,       { method: 'POST', body: { borrower_dept: dept } })
+// export const retractLoanOffer = (id)       => req(`/economy/loan-offers/${id}/retract`,      { method: 'POST' })
